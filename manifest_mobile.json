@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
   "apk": {
-    "version": "1.0.5",
-    "version_code": 105,
+    "version": "1.0.6",
+    "version_code": 106,
     "mandatory": true,
     "download_url": "https://github.com/Reyhanzz/search-roleplay-mobile/releases/latest/download/SearchRoleplayMobile.apk",
     "sha256": "",
     "changelog": [
-      "Fixed in-game SIGSEGV crash in TextureDatabaseRuntime::GetEntry (libGTASA.so + 0x1E900A) caused by NULL texture DB entries in registered[]",
-      "Hooked TextureDatabaseRuntime::Register/Unregister/GetEntry, RwTextureDestroy, and RwFrameAddChild on both ARM32 and ARM64 + fixed CUtil::LoadTextureFromDB unregister leak",
-      "Fixed APK auto-updater: redirect + cache-busted manifest fetch, GitHub Releases API fallback, update popup dialog with browser fallback, internal cache APK storage for Android 12 Go FileProvider, and Android 8+ Install Unknown Apps permission flow"
+      "Fixed SIGABRT (__stack_chk_fail) in CFileLoader::SetRelatedModelInfoCB when loading 0.3.DL custom .dff models with Frame NodeName >= 24 characters",
+      "Added RW NodeName (0x0253F2FE) DFF sanitizer in custommodels.cpp to prevent both RwFrame heap overflow in NodeNameStreamRead and stack canary overflow",
+      "Hooked GetNameAndDamage on ARM32 & ARM64 to strictly clamp output to 23 chars + NUL, plus CModelInfo CStore capacity guards"
     ]
   },
   "remote_config": {

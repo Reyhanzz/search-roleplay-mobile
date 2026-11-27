@@ -986,6 +986,52 @@ void CTextureDatabaseRuntime__Unregister_hook(uintptr_t toUnregister)
 	CTextureDatabaseRuntime__Unregister(toUnregister);
 }
 
+void (*GetNameAndDamage_orig)(const char* nodeName, char* outName, bool& outIsDamaged);
+void GetNameAndDamage_hook(const char* nodeName, char* outName, bool& outIsDamaged)
+{
+	if (!outName) return;
+	if (!nodeName)
+	{
+		outName[0] = '\0';
+		outIsDamaged = false;
+		return;
+	}
+
+	size_t len = strlen(nodeName);
+	bool isDam = false;
+	size_t copyLen = len;
+
+	if (len >= 4 &&
+		nodeName[len - 4] == '_' &&
+		(nodeName[len - 3] == 'd' || nodeName[len - 3] == 'D') &&
+		(nodeName[len - 2] == 'a' || nodeName[len - 2] == 'A') &&
+		(nodeName[len - 1] == 'm' || nodeName[len - 1] == 'M'))
+	{
+		isDam = true;
+		copyLen = len - 4;
+	}
+	else if (len >= 3 &&
+		nodeName[len - 3] == '_' &&
+		(nodeName[len - 2] == 'l' || nodeName[len - 2] == 'L') &&
+		nodeName[len - 1] == '0')
+	{
+		isDam = false;
+		copyLen = len - 3;
+	}
+
+	// CFileLoader::SetRelatedModelInfoCB passes a 24-byte stack buffer protected by a stack canary.
+	if (copyLen > 23)
+	{
+		copyLen = 23;
+	}
+	if (copyLen > 0)
+	{
+		memcpy(outName, nodeName, copyLen);
+	}
+	outName[copyLen] = '\0';
+	outIsDamaged = isDam;
+}
+
 uintptr_t (*CTxdStore__TxdStoreFindCB)(const char *a1);
 uintptr_t CTxdStore__TxdStoreFindCB_hook(const char *a1)
 {
@@ -1915,6 +1961,7 @@ void InstallSpecialHooks()
     CHook::InlineHook("_ZN22TextureDatabaseRuntime10UnregisterEPS_", &CTextureDatabaseRuntime__Unregister_hook, &CTextureDatabaseRuntime__Unregister);
     CHook::InlineHook("_Z16RwTextureDestroyP9RwTexture", &_RwTextureDestroy_hook, &_RwTextureDestroy);
     CHook::InlineHook("_Z15RwFrameAddChildP7RwFrameS0_", &RwFrameAddChild_hook, &RwFrameAddChild);
+    CHook::InlineHook("_Z16GetNameAndDamagePKcPcRb", &GetNameAndDamage_hook, &GetNameAndDamage_orig);
 
 	CHook::InlineHook("_Z32_rxOpenGLDefaultAllInOneRenderCBP10RwResEntryPvhj", &rxOpenGLDefaultAllInOneRenderCB_hook, &rxOpenGLDefaultAllInOneRenderCB);
 	CHook::InlineHook("_ZN25CCustomBuildingDNPipeline18CustomPipeRenderCBEP10RwResEntryPvhj", &CCustomBuildingDNPipeline__CustomPipeRenderCB_hook, &CCustomBuildingDNPipeline__CustomPipeRenderCB);

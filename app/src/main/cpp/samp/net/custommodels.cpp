@@ -50,6 +50,7 @@ constexpr int32_t  kMaxDynamicSlot          = 19999;
 constexpr uint32_t kRwIdStruct          = 0x0001;
 constexpr uint32_t kRwIdTextureNative   = 0x0015;
 constexpr uint32_t kRwIdTexDictionary   = 0x0016;
+constexpr uint32_t kRwIdNodeName        = 0x0253F2FEu;
 
 // RenderWare D3D platform IDs
 constexpr uint32_t kRwPlatformD3D8      = 8;
@@ -954,6 +955,160 @@ struct ScopedCustomTextureFind
 };
 
 // ============================================================================
+// DFF Frame NodeName Sanitizer (prevents 24-byte heap/stack overflow in libGTASA)
+// ============================================================================
+void WriteU32LE(uint8_t* p, uint32_t v)
+{
+    p[0] = static_cast<uint8_t>(v & 0xFFu);
+    p[1] = static_cast<uint8_t>((v >> 8) & 0xFFu);
+    p[2] = static_cast<uint8_t>((v >> 16) & 0xFFu);
+    p[3] = static_cast<uint8_t>((v >> 24) & 0xFFu);
+}
+
+bool IsRwContainerChunk(uint32_t id)
+{
+    switch (id)
+    {
+        case 0x0010u: // rwID_CLUMP
+        case 0x000Eu: // rwID_FRAMELIST
+        case 0x0003u: // rwID_EXTENSION
+        case 0x0014u: // rwID_ATOMIC
+        case 0x001Au: // rwID_GEOMETRYLIST
+        case 0x000Fu: // rwID_GEOMETRY
+        case 0x0008u: // rwID_MATLIST
+        case 0x0007u: // rwID_MATERIAL
+        case 0x0006u: // rwID_TEXTURE
+            return true;
+        default:
+            return false;
+    }
+}
+
+bool CanTileRwChunks(const uint8_t* data, size_t len)
+{
+    size_t pos = 0;
+    while (pos < len)
+    {
+        if (len - pos < 12u) return false;
+        uint32_t sz = ReadU32LE(data + pos + 4);
+        if (sz > len - pos - 12u) return false;
+        pos += 12u + sz;
+    }
+    return pos == len;
+}
+
+void SanitizeNodeNamePayload(const uint8_t* body, size_t bodySize, std::string& outName)
+{
+    size_t effLen = 0;
+    while (effLen < bodySize && body[effLen] != 0)
+    {
+        ++effLen;
+    }
+
+    // GTA SA NodeNameStreamRead writes frameNodeName[binaryLength] = '\0' into a 24-byte RwFrame slot,
+    // and CFileLoader::SetRelatedModelInfoCB copies into char name[24] with a stack canary.
+    if (effLen <= 23u)
+    {
+        outName.assign(reinterpret_cast<const char*>(body), effLen);
+        return;
+    }
+
+    if (effLen >= 4u &&
+        body[effLen - 4] == '_' &&
+        (body[effLen - 3] == 'd' || body[effLen - 3] == 'D') &&
+        (body[effLen - 2] == 'a' || body[effLen - 2] == 'A') &&
+        (body[effLen - 1] == 'm' || body[effLen - 1] == 'M'))
+    {
+        outName.assign(reinterpret_cast<const char*>(body), 19u);
+        outName.append(reinterpret_cast<const char*>(body + effLen - 4), 4u);
+        return;
+    }
+
+    if (effLen >= 3u &&
+        body[effLen - 3] == '_' &&
+        (body[effLen - 2] == 'l' || body[effLen - 2] == 'L') &&
+        body[effLen - 1] == '0')
+    {
+        outName.assign(reinterpret_cast<const char*>(body), 20u);
+        outName.append(reinterpret_cast<const char*>(body + effLen - 3), 3u);
+        return;
+    }
+
+    outName.assign(reinterpret_cast<const char*>(body), 23u);
+}
+
+void SanitizeRwChunkSequence(const uint8_t* data, size_t len, std::vector<uint8_t>& out, int depth, int& outFixedCount)
+{
+    size_t pos = 0;
+    while (pos + 12u <= len)
+    {
+        uint32_t id   = ReadU32LE(data + pos + 0);
+        uint32_t size = ReadU32LE(data + pos + 4);
+        uint32_t ver  = ReadU32LE(data + pos + 8);
+        if (size > len - pos - 12u)
+        {
+            out.insert(out.end(), data + pos, data + len);
+            return;
+        }
+
+        const uint8_t* body = data + pos + 12u;
+
+        if (id == kRwIdNodeName && size > 23u)
+        {
+            std::string trimmed;
+            SanitizeNodeNamePayload(body, size, trimmed);
+            size_t hdrOff = out.size();
+            out.resize(hdrOff + 12u + trimmed.size());
+            WriteU32LE(out.data() + hdrOff + 0, id);
+            WriteU32LE(out.data() + hdrOff + 4, static_cast<uint32_t>(trimmed.size()));
+            WriteU32LE(out.data() + hdrOff + 8, ver);
+            if (!trimmed.empty())
+            {
+                memcpy(out.data() + hdrOff + 12u, trimmed.data(), trimmed.size());
+            }
+            ++outFixedCount;
+        }
+        else if (depth < 16 && IsRwContainerChunk(id) && size > 0u && CanTileRwChunks(body, size))
+        {
+            size_t hdrOff = out.size();
+            out.resize(hdrOff + 12u);
+            WriteU32LE(out.data() + hdrOff + 0, id);
+            WriteU32LE(out.data() + hdrOff + 4, 0u);
+            WriteU32LE(out.data() + hdrOff + 8, ver);
+            size_t bodyStart = out.size();
+            SanitizeRwChunkSequence(body, size, out, depth + 1, outFixedCount);
+            uint32_t newSize = static_cast<uint32_t>(out.size() - bodyStart);
+            WriteU32LE(out.data() + hdrOff + 4, newSize);
+        }
+        else
+        {
+            out.insert(out.end(), data + pos, data + pos + 12u + size);
+        }
+
+        pos += 12u + size;
+    }
+
+    if (pos < len)
+    {
+        out.insert(out.end(), data + pos, data + len);
+    }
+}
+
+void SanitizeDffNodeNamesInPlace(std::vector<uint8_t>& dffBytes, uint32_t dffCrc)
+{
+    if (dffBytes.size() < 12u) return;
+    std::vector<uint8_t> sanitized;
+    sanitized.reserve(dffBytes.size());
+    int fixedCount = 0;
+    SanitizeRwChunkSequence(dffBytes.data(), dffBytes.size(), sanitized, 0, fixedCount);
+    if (fixedCount > 0 && sanitized.size() >= 12u)
+    {
+        FLog("0.3.DL: sanitized %d oversized NodeName chunk(s) in DFF %08X", fixedCount, dffCrc);
+        dffBytes.swap(sanitized);
+    }
+}
+
+// ============================================================================
 // Internal GTA SA Slot Allocation & Engine Model Loader
 // ============================================================================
 int32_t AllocateInternalSlot(uint8_t modelType, bool& outReusedExistingInfo)
@@ -1013,6 +1168,10 @@ bool LoadCustomModelIntoEngine(CustomModelEntry& entry)
         return false;
     }
 
+    // Clamp oversized RW Frame NodeName (0x0253F2FE) chunks to <= 23 bytes before ConvertBufferToObject
+    // to prevent heap overflow in NodeNameStreamRead and stack canary SIGABRT in SetRelatedModelInfoCB.
+    SanitizeDffNodeNamesInPlace(dffBytes, entry.dffCrc);
+
     // Pad DFF to STREAMING_SECTOR_SIZE (2048 bytes) for CStreaming::ConvertBufferToObject
     size_t paddedSize = ((dffBytes.size() + STREAMING_SECTOR_SIZE - 1u) / STREAMING_SECTOR_SIZE) * STREAMING_SECTOR_SIZE;
     if (paddedSize == 0) paddedSize = STREAMING_SECTOR_SIZE;
@@ -1062,6 +1221,14 @@ bool LoadCustomModelIntoEngine(CustomModelEntry& entry)
         if (!baseMi)
         {
             FLog("0.3.DL: missing base ped model %d for custom skin %d", safeBase, entry.newId);
+            entry.loadState = ModelLoadState::Failed;
+            return false;
+        }
+
+        if (!reusedInfo && CModelInfo::ms_pedModelInfoStore.m_nCount >= CModelInfo::NUM_PED_MODEL_INFOS)
+        {
+            FLog("0.3.DL: ped ModelInfo store full (%zu), skipping serverId=%d",
+                 CModelInfo::ms_pedModelInfoStore.m_nCount, entry.newId);
             entry.loadState = ModelLoadState::Failed;
             return false;
         }
@@ -1123,6 +1290,14 @@ bool LoadCustomModelIntoEngine(CustomModelEntry& entry)
             ? entry.baseId : kFallbackObjectModel;
         baseMi = CModelInfo::GetModelInfo(safeBase);
         if (!baseMi) baseMi = CModelInfo::GetModelInfo(kFallbackObjectModel);
+
+        if (!reusedInfo && CModelInfo::ms_atomicModelInfoStore.m_nCount >= 20000u)
+        {
+            FLog("0.3.DL: atomic ModelInfo store full (%zu), skipping serverId=%d",
+                 CModelInfo::ms_atomicModelInfoStore.m_nCount, entry.newId);
+            entry.loadState = ModelLoadState::Failed;
+            return false;
+        }
 
         CAtomicModelInfo* objMi = reusedInfo
             ? reinterpret_cast<CAtomicModelInfo*>(CModelInfo::GetModelInfo(slot))
