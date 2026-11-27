@@ -122,6 +122,20 @@ struct sigaction act3_old;
 
 extern int g_iLastProcessedSkinCollision, g_iLastProcessedEntityCollision, g_iLastRenderedObject;
 extern uintptr_t g_dwLastRetAddrCrash;
+static volatile sig_atomic_t g_bCrashLogWritten = 0;
+
+static void LogCrashOnce(const char* sigName, siginfo_t* info, ucontext_t* context)
+{
+	if (g_bCrashLogWritten) return;
+	g_bCrashLogWritten = 1;
+	FLog("%s | Fault address: 0x%lx", sigName, reinterpret_cast<unsigned long>(info ? info->si_addr : nullptr));
+	if (context)
+	{
+		PRINT_CRASH_STATES(context);
+	}
+	CStackTrace::printBacktrace();
+}
+
 void handler(int signum, siginfo_t *info, void* contextPtr)
 {
 	ucontext* context = (ucontext_t*)contextPtr;
@@ -131,13 +145,9 @@ void handler(int signum, siginfo_t *info, void* contextPtr)
 		act_old.sa_sigaction(signum, info, contextPtr);
 	}
 
-	if(info->si_signo == SIGSEGV)
+	if(info && info->si_signo == SIGSEGV)
 	{
-		FLog("SIGSEGV | Fault address: 0x%x", info->si_addr);
-
-		PRINT_CRASH_STATES(context);
-
-		CStackTrace::printBacktrace();
+		LogCrashOnce("SIGSEGV", info, context);
 	}
 
 	return;
@@ -152,13 +162,9 @@ void handler1(int signum, siginfo_t *info, void* contextPtr)
 		act1_old.sa_sigaction(signum, info, contextPtr);
 	}
 
-	if(info->si_signo == SIGABRT)
+	if(info && info->si_signo == SIGABRT)
 	{
-		FLog("SIGABRT | Fault address: 0x%x", info->si_addr);
-
-		PRINT_CRASH_STATES(context);
-
-		CStackTrace::printBacktrace();
+		LogCrashOnce("SIGABRT", info, context);
 	}
 
 	return;
@@ -173,13 +179,9 @@ void handler2(int signum, siginfo_t *info, void* contextPtr)
 		act2_old.sa_sigaction(signum, info, contextPtr);
 	}
 
-	if(info->si_signo == SIGFPE)
+	if(info && info->si_signo == SIGFPE)
 	{
-		FLog("SIGFPE | Fault address: 0x%x", info->si_addr);
-
-		PRINT_CRASH_STATES(context);
-
-		CStackTrace::printBacktrace();
+		LogCrashOnce("SIGFPE", info, context);
 	}
 
 	return;
@@ -194,13 +196,9 @@ void handler3(int signum, siginfo_t *info, void* contextPtr)
 		act3_old.sa_sigaction(signum, info, contextPtr);
 	}
 
-	if(info->si_signo == SIGBUS)
+	if(info && info->si_signo == SIGBUS)
 	{
-		FLog("SIGBUS | Fault address: 0x%x", info->si_addr);
-
-		PRINT_CRASH_STATES(context);
-
-		CStackTrace::printBacktrace();
+		LogCrashOnce("SIGBUS", info, context);
 	}
 
 	return;

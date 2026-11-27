@@ -524,13 +524,18 @@ RwTexture* CreateRwTextureFromRgba(const char* texName, const char* maskName, in
 
     RwImage* img = RwImageCreate(curW, curH, 32);
     if (!img) return nullptr;
-    if (!RwImageAllocatePixels(img))
+    if (!RwImageAllocatePixels(img) || !img->cpPixels)
     {
         RwImageDestroy(img);
         return nullptr;
     }
 
     size_t rowBytes = static_cast<size_t>(curW) * 4u;
+    if (img->stride < static_cast<RwInt32>(rowBytes))
+    {
+        RwImageDestroy(img);
+        return nullptr;
+    }
     for (int y = 0; y < curH; ++y)
     {
         memcpy(img->cpPixels + static_cast<size_t>(y) * static_cast<size_t>(img->stride),
@@ -540,6 +545,13 @@ RwTexture* CreateRwTextureFromRgba(const char* texName, const char* maskName, in
 
     RwInt32 rw = 0, rh = 0, rd = 0, rflags = 0;
     RwImageFindRasterFormat(img, rwRASTERTYPETEXTURE, &rw, &rh, &rd, &rflags);
+    // Only mip level 0 is uploaded; strip mipmap flags so PowerVR/GLES2 never generates or samples broken mip chains.
+    rflags &= ~(rwRASTERFORMATMIPMAP | rwRASTERFORMATAUTOMIPMAP);
+    if (rw <= 0 || rh <= 0)
+    {
+        RwImageDestroy(img);
+        return nullptr;
+    }
     RwRaster* raster = RwRasterCreate(rw, rh, rd, rflags);
     if (!raster)
     {
@@ -934,7 +946,7 @@ RwTexture* CustomTextureFindCB(const RwChar* name)
             return it->second;
         }
     }
-    if (s_prevFindCallback)
+    if (s_prevFindCallback && s_prevFindCallback != &CustomTextureFindCB)
     {
         return s_prevFindCallback(name);
     }
@@ -968,6 +980,10 @@ struct ScopedCustomTextureFind
     {
         if (!texMap || texMap->empty()) return;
         RwTextureCallBackFind prev = ResolveCurrentTextureFindCB();
+        if (prev == &CustomTextureFindCB)
+        {
+            prev = s_prevFindCallback;
+        }
         if (!prev)
         {
             FLog("0.3.DL: unable to resolve current RwTextureFindCallBack; skipping TXD hook");
@@ -1207,6 +1223,17 @@ bool LoadCustomModelIntoEngine(CustomModelEntry& entry)
         return false;
     }
 
+    uint32_t dffRootId = ReadU32LE(dffBytes.data() + 0);
+    if (dffRootId != 0x0010u && dffRootId != 0x002Bu)
+    {
+        FLog("0.3.DL: invalid DFF root chunk 0x%X for serverId=%d (crc %08X)", dffRootId, entry.newId, entry.dffCrc);
+        entry.loadState = ModelLoadState::Failed;
+        return false;
+    }
+
+    FLog("0.3.DL: loading model serverId=%d (type=%u, base=%d, dff=%08X[%zu], txd=%08X)",
+         entry.newId, entry.type, entry.baseId, entry.dffCrc, dffBytes.size(), entry.txdCrc);
+
     // Clamp oversized RW Frame NodeName (0x0253F2FE) chunks to <= 19 bytes before ConvertBufferToObject
     // to prevent heap overflow in NodeNameStreamRead and stack canary SIGABRT in SetRelatedModelInfoCB (char name[20]).
     SanitizeDffNodeNamesInPlace(dffBytes, entry.dffCrc);
@@ -1288,7 +1315,7 @@ bool LoadCustomModelIntoEngine(CustomModelEntry& entry)
         }
 
         CPedModelInfo* basePed = baseMi->AsPedModelInfoPtr();
-        pedMi->m_nTxdIndex         = basePed->m_nTxdIndex;
+        pedMi->m_nTxdIndex         = (basePed->m_nTxdIndex >= 0) ? basePed->m_nTxdIndex : 0;
         pedMi->m_nAlpha            = 255;
         pedMi->m_nFlags            = basePed->m_nFlags & static_cast<uint16_t>(~(1u << 5));
         pedMi->m_pColModel         = basePed->m_pColModel;
@@ -1353,7 +1380,7 @@ bool LoadCustomModelIntoEngine(CustomModelEntry& entry)
             objMi->DeleteRwObject();
         }
 
-        objMi->m_nTxdIndex     = baseMi ? baseMi->m_nTxdIndex : 0;
+        objMi->m_nTxdIndex     = (baseMi && baseMi->m_nTxdIndex >= 0) ? baseMi->m_nTxdIndex : 0;
         objMi->m_nAlpha        = 255;
         objMi->m_nFlags        = baseMi ? (baseMi->m_nFlags & static_cast<uint16_t>(~(1u << 5))) : 0;
         objMi->m_pColModel     = nullptr; // Let embedded DFF COL populate if present

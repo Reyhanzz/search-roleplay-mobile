@@ -1,14 +1,15 @@
 {
   "schema_version": 1,
   "apk": {
-    "version": "1.0.8",
-    "version_code": 108,
+    "version": "1.0.9",
+    "version_code": 109,
     "mandatory": true,
     "download_url": "https://github.com/Reyhanzz/search-roleplay-mobile/releases/latest/download/SearchRoleplayMobile.apk",
     "sha256": "",
     "changelog": [
-      "Fixed persistent ARM32 SIGABRT (__stack_chk_fail) in CFileLoader::SetRelatedModelInfoCB by clamping DFF NodeName chunks and GetNameAndDamage output to <= 19 chars (matching libGTASA char name[20] stack buffer)",
-      "Added 512px texture downscaling for 0.3.DL custom RGBA textures on 32-bit Android to reduce VRAM usage and prevent OOM on 2 GB RAM devices"
+      "Fixed infinite _Unwind_Backtrace loop in CStackTrace (capped at 32 frames, stops on repeating PC, logs exact .so library + offset for PC/LR/backtrace) and added crash-handler re-entrancy guard",
+      "Hardened 0.3.DL custom model loader: strip mipmap raster flags for PowerVR GLES2 safety, guard m_nTxdIndex < 0, prevent re-entrant CustomTextureFindCB recursion, validate DFF chunk header, and log model ID before load",
+      "Upgraded View samp_log.txt viewer to 140 deduplicated lines with one-tap Copy button"
     ]
   },
   "remote_config": {

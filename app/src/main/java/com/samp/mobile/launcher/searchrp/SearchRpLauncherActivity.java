@@ -1163,12 +1163,27 @@ public class SearchRpLauncherActivity extends AppCompatActivity {
     // ==================== HELPERS ====================
     private void showSampLogDialog() {
         bgExec.execute(() -> {
-            String log = SrpGameDataManager.readTailLog(this, 60);
-            mainHandler.post(() -> new AlertDialog.Builder(this)
-                    .setTitle(t("log_title"))
-                    .setMessage(log.isEmpty() ? t("log_empty") : log)
-                    .setPositiveButton(t("btn_close"), null)
-                    .show());
+            String log = SrpGameDataManager.readTailLog(this, 140);
+            final String msg = log.isEmpty() ? t("log_empty") : log;
+            mainHandler.post(() -> {
+                AlertDialog.Builder b = new AlertDialog.Builder(this)
+                        .setTitle(t("log_title"))
+                        .setMessage(msg)
+                        .setPositiveButton(t("btn_close"), null);
+                if (!log.isEmpty()) {
+                    b.setNeutralButton("Copy", (d, w) -> {
+                        try {
+                            ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+                            if (cm != null) {
+                                cm.setPrimaryClip(ClipData.newPlainText("samp_log", log));
+                                toast("Log copied!");
+                            }
+                        } catch (Exception ignored) {
+                        }
+                    });
+                }
+                b.show();
+            });
         });
     }
 

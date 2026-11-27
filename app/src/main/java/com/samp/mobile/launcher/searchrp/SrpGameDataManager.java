@@ -675,13 +675,31 @@ public final class SrpGameDataManager {
     }
 
     private static String readFileTail(File logFile, int maxLines) {
-        java.util.ArrayDeque<String> deque = new java.util.ArrayDeque<>(maxLines + 2);
+        java.util.ArrayDeque<String> deque = new java.util.ArrayDeque<>(maxLines + 4);
+        String prevLine = null;
+        int repeatCount = 0;
         try (BufferedReader br = new BufferedReader(
                 new InputStreamReader(new FileInputStream(logFile), StandardCharsets.UTF_8))) {
             String ln;
             while ((ln = br.readLine()) != null) {
+                String trimmed = ln.trim();
+                if (trimmed.isEmpty()) continue;
+                if (trimmed.equals(prevLine)) {
+                    repeatCount++;
+                    continue;
+                }
+                if (repeatCount > 0) {
+                    if (deque.size() >= maxLines) deque.removeFirst();
+                    deque.addLast("  ... (repeated " + repeatCount + " more times)");
+                    repeatCount = 0;
+                }
+                prevLine = trimmed;
                 if (deque.size() >= maxLines) deque.removeFirst();
-                deque.addLast(ln);
+                deque.addLast(trimmed);
+            }
+            if (repeatCount > 0) {
+                if (deque.size() >= maxLines) deque.removeFirst();
+                deque.addLast("  ... (repeated " + repeatCount + " more times)");
             }
         } catch (Exception ignored) {
         }
