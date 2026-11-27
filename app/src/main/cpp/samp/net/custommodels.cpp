@@ -476,6 +476,85 @@ bool DecodeDxtImage(const uint8_t* src, size_t srcLen, int width, int height, in
     return true;
 }
 
+int NextPow2Clamped(int v, int maxDim)
+{
+    if (v <= 1) return 1;
+    int p = 1;
+    while (p < v && p < maxDim)
+    {
+        p <<= 1;
+    }
+    return (p > maxDim) ? maxDim : p;
+}
+
+void ResampleRgba(const uint8_t* src, int srcW, int srcH, int dstW, int dstH, std::vector<uint8_t>& out)
+{
+    out.resize(static_cast<size_t>(dstW) * static_cast<size_t>(dstH) * 4u);
+    for (int y = 0; y < dstH; ++y)
+    {
+        uint32_t syFixed = (dstH > 1)
+            ? static_cast<uint32_t>((static_cast<uint64_t>(y) * static_cast<uint64_t>(srcH - 1) << 16) / static_cast<uint64_t>(dstH - 1))
+            : 0u;
+        int sy0 = static_cast<int>(syFixed >> 16);
+        int sy1 = (sy0 + 1 < srcH) ? (sy0 + 1) : (srcH - 1);
+        uint32_t fy = (syFixed >> 8) & 0xFFu;
+        uint32_t iy = 256u - fy;
+
+        for (int x = 0; x < dstW; ++x)
+        {
+            uint32_t sxFixed = (dstW > 1)
+                ? static_cast<uint32_t>((static_cast<uint64_t>(x) * static_cast<uint64_t>(srcW - 1) << 16) / static_cast<uint64_t>(dstW - 1))
+                : 0u;
+            int sx0 = static_cast<int>(sxFixed >> 16);
+            int sx1 = (sx0 + 1 < srcW) ? (sx0 + 1) : (srcW - 1);
+            uint32_t fx = (sxFixed >> 8) & 0xFFu;
+            uint32_t ix = 256u - fx;
+
+            const uint8_t* p00 = src + (static_cast<size_t>(sy0) * srcW + sx0) * 4u;
+            const uint8_t* p10 = src + (static_cast<size_t>(sy0) * srcW + sx1) * 4u;
+            const uint8_t* p01 = src + (static_cast<size_t>(sy1) * srcW + sx0) * 4u;
+            const uint8_t* p11 = src + (static_cast<size_t>(sy1) * srcW + sx1) * 4u;
+
+            uint32_t w00 = ix * iy;
+            uint32_t w10 = fx * iy;
+            uint32_t w01 = ix * fy;
+            uint32_t w11 = fx * fy;
+
+            uint8_t* dst = out.data() + (static_cast<size_t>(y) * dstW + x) * 4u;
+            for (int c = 0; c < 4; ++c)
+            {
+                uint32_t val = p00[c] * w00 + p10[c] * w10 + p01[c] * w01 + p11[c] * w11 + 32768u;
+                dst[c] = static_cast<uint8_t>(val >> 16);
+            }
+        }
+    }
+}
+
+RwImage* CreateRwImageFromRgbaBuf(const uint8_t* pixels, int w, int h)
+{
+    if (!pixels || w <= 0 || h <= 0) return nullptr;
+    RwImage* img = RwImageCreate(w, h, 32);
+    if (!img) return nullptr;
+    if (!RwImageAllocatePixels(img) || !img->cpPixels)
+    {
+        RwImageDestroy(img);
+        return nullptr;
+    }
+    size_t rowBytes = static_cast<size_t>(w) * 4u;
+    if (img->stride < static_cast<RwInt32>(rowBytes))
+    {
+        RwImageDestroy(img);
+        return nullptr;
+    }
+    for (int y = 0; y < h; ++y)
+    {
+        memcpy(img->cpPixels + static_cast<size_t>(y) * static_cast<size_t>(img->stride),
+               pixels + static_cast<size_t>(y) * rowBytes,
+               rowBytes);
+    }
+    return img;
+}
+
 RwTexture* CreateRwTextureFromRgba(const char* texName, const char* maskName, int width, int height,
                                    const std::vector<uint8_t>& rgba, uint32_t filterFlags)
 {
@@ -488,9 +567,10 @@ RwTexture* CreateRwTextureFromRgba(const char* texName, const char* maskName, in
     int curW = width;
     int curH = height;
     std::vector<uint8_t> scaled;
-#if VER_x32
-    // Cap decoded 0.3.DL RGBA textures to 256x256 on 32-bit Android so 200+ custom models stay well under 2 GB RAM/VRAM.
-    constexpr int kMaxDim = 256;
+
+    // Cap decoded 0.3.DL RGBA textures (256px on 32-bit for 2 GB RAM devices, 1024px on 64-bit)
+    // using 2x box halving first for clean downsampling.
+    constexpr int kMaxDim = VER_x32 ? 256 : 1024;
     while (curW > kMaxDim || curH > kMaxDim)
     {
         int nextW = std::max(1, curW / 2);
@@ -520,38 +600,48 @@ RwTexture* CreateRwTextureFromRgba(const char* texName, const char* maskName, in
         curW = nextW;
         curH = nextH;
     }
-#endif
 
-    RwImage* img = RwImageCreate(curW, curH, 32);
+    // Ensure power-of-two dimensions: GTA SA Mobile's _rwOpenGLRasterSetImage copies img->width x img->height
+    // directly into raster without resampling, so NPOT images overflow smaller power-of-two rasters and SIGSEGV.
+    int pow2W = NextPow2Clamped(curW, kMaxDim);
+    int pow2H = NextPow2Clamped(curH, kMaxDim);
+    if (pow2W != curW || pow2H != curH)
+    {
+        std::vector<uint8_t> resampled;
+        ResampleRgba(srcPixels, curW, curH, pow2W, pow2H, resampled);
+        scaled.swap(resampled);
+        srcPixels = scaled.data();
+        curW = pow2W;
+        curH = pow2H;
+    }
+
+    RwImage* img = CreateRwImageFromRgbaBuf(srcPixels, curW, curH);
     if (!img) return nullptr;
-    if (!RwImageAllocatePixels(img) || !img->cpPixels)
-    {
-        RwImageDestroy(img);
-        return nullptr;
-    }
-
-    size_t rowBytes = static_cast<size_t>(curW) * 4u;
-    if (img->stride < static_cast<RwInt32>(rowBytes))
-    {
-        RwImageDestroy(img);
-        return nullptr;
-    }
-    for (int y = 0; y < curH; ++y)
-    {
-        memcpy(img->cpPixels + static_cast<size_t>(y) * static_cast<size_t>(img->stride),
-               srcPixels + static_cast<size_t>(y) * rowBytes,
-               rowBytes);
-    }
 
     RwInt32 rw = 0, rh = 0, rd = 0, rflags = 0;
     RwImageFindRasterFormat(img, rwRASTERTYPETEXTURE, &rw, &rh, &rd, &rflags);
     // Only mip level 0 is uploaded; strip mipmap flags so PowerVR/GLES2 never generates or samples broken mip chains.
     rflags &= ~(rwRASTERFORMATMIPMAP | rwRASTERFORMATAUTOMIPMAP);
-    if (rw <= 0 || rh <= 0)
+    if (rw <= 0 || rh <= 0 || rw > 4096 || rh > 4096)
     {
         RwImageDestroy(img);
         return nullptr;
     }
+
+    // Strictly enforce img->width == rw && img->height == rh before RwRasterSetFromImage.
+    if (rw != curW || rh != curH)
+    {
+        RwImageDestroy(img);
+        std::vector<uint8_t> fitted;
+        ResampleRgba(srcPixels, curW, curH, rw, rh, fitted);
+        scaled.swap(fitted);
+        srcPixels = scaled.data();
+        curW = rw;
+        curH = rh;
+        img = CreateRwImageFromRgbaBuf(srcPixels, curW, curH);
+        if (!img) return nullptr;
+    }
+
     RwRaster* raster = RwRasterCreate(rw, rh, rd, rflags);
     if (!raster)
     {

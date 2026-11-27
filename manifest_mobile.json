@@ -1,15 +1,13 @@
 {
   "schema_version": 1,
   "apk": {
-    "version": "1.0.10",
-    "version_code": 110,
+    "version": "1.0.11",
+    "version_code": 111,
     "mandatory": true,
     "download_url": "https://github.com/Reyhanzz/search-roleplay-mobile/releases/latest/download/SearchRoleplayMobile.apk",
     "sha256": "",
     "changelog": [
-      "Fixed critical PowerVR/GLES2 SIGSEGV in glDrawElements (GraphicsThread): CRQ_Commands::rqVertexBufferSelect was passing raw heap address (buffer + 8) to glBindBuffer instead of dereferencing ES2VertexBuffer::bufferId (*(GLuint*)(buffer + 8/12))",
-      "Fixed RLEDecompress_hook throwing fake rled error 3 on multi-block/concurrent texture reads that left GTA textures corrupted",
-      "Tuned 32-bit 0.3.DL custom texture cap to 256px and raised download timeout to 90s for large 28 MB custom TXDs on 2 GB RAM devices"
+      "Fixed SIGSEGV in _rwOpenGLRasterSetImage (RwRasterSetFromImage) when decoding non-power-of-two 0.3.DL custom textures: resample RGBA to exact power-of-two and enforce img dimensions match RwImageFindRasterFormat output before upload"
     ]
   },
   "remote_config": {
