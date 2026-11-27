@@ -1,0 +1,113 @@
+name: Build & Release Search Roleplay Mobile APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_version:
+        description: 'Optional version tag to publish (leave empty for artifact-only test build)'
+        required: false
+        default: ''
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Cache Android SDK & NDK
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.ANDROID_HOME }}
+          key: srp-android-sdk-ndk26-${{ runner.os }}
+
+      - name: Install Android SDK 34, NDK 26.2 & CMake 3.22
+        run: |
+          SDKM="$(ls "$ANDROID_HOME"/cmdline-tools/*/bin/sdkmanager 2>/dev/null | head -1)"
+          [ -z "$SDKM" ] && SDKM="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKM" --licenses > /dev/null 2>&1 || true
+          for i in 1 2 3; do
+            "$SDKM" "platforms;android-34" "build-tools;34.0.0" "ndk;26.2.11394342" "cmake;3.22.1" --channel=0 >/dev/null && { echo "SDK packages ready (attempt $i)"; break; } || { echo "Retrying sdkmanager ($i)..."; sleep 8; }
+          done
+
+      - name: Fetch prebuilt GTA SA 2.10 native libs (ARM32 + ARM64)
+        run: |
+          BASE="https://raw.githubusercontent.com/kuzia15/SAMP-Mobile/GTA-2.10/app/src/main/jniLibs"
+          mkdir -p app/src/main/jniLibs/armeabi-v7a app/src/main/jniLibs/arm64-v8a
+          curl -sfL -o app/src/main/jniLibs/armeabi-v7a/libGTASA.so "$BASE/armeabi-v7a/libGTASA.so"
+          curl -sfL -o app/src/main/jniLibs/arm64-v8a/libGTASA.so "$BASE/arm64-v8a/libGTASA.so"
+          curl -sfL -o app/src/main/jniLibs/arm64-v8a/libOpenAL64.so "$BASE/arm64-v8a/libOpenAL64.so"
+          find app/src/main/jniLibs -name "*.so" -exec ls -lh {} \;
+
+      - name: Set up Gradle 8.9
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Compile Release APK (ARM32 + ARM64)
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon --stacktrace
+
+      - name: Package SearchRoleplayMobile.apk & compute SHA-256
+        run: |
+          mkdir -p release_out
+          SRC_APK="$(find app/build/outputs/apk/release -name '*.apk' | head -1)"
+          cp "$SRC_APK" release_out/SearchRoleplayMobile.apk
+          SHA256="$(sha256sum release_out/SearchRoleplayMobile.apk | awk '{print $1}')"
+          SIZE_MB="$(du -m release_out/SearchRoleplayMobile.apk | awk '{print $1}')"
+          echo "APK_SHA256=$SHA256" >> "$GITHUB_ENV"
+          echo "APK_SIZE_MB=$SIZE_MB" >> "$GITHUB_ENV"
+          echo "Built SearchRoleplayMobile.apk (${SIZE_MB} MB) SHA-256: $SHA256"
+          python3 - << 'PY'
+          import json, os
+          from pathlib import Path
+          p = Path("manifest_mobile.json")
+          data = json.loads(p.read_text(encoding="utf-8"))
+          data["apk"]["sha256"] = os.environ["APK_SHA256"]
+          Path("release_out/manifest_mobile.json").write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+          PY
+
+      - name: Upload Build Artifact (Download directly from Actions tab)
+        uses: actions/upload-artifact@v4
+        with:
+          name: SearchRoleplayMobile-APK
+          path: |
+            release_out/SearchRoleplayMobile.apk
+            release_out/manifest_mobile.json
+
+      - name: Publish GitHub Release on Tag
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release_out/SearchRoleplayMobile.apk
+            release_out/manifest_mobile.json
+          generate_release_notes: false
+          body: |
+            ### Search Roleplay Mobile (${{ github.ref_name }})
+            - Official All-in-One Android Launcher & SA-MP / OpenMP Mobile Client (`com.searchroleplay.mobile`)
+            - Dual Architecture: **ARM32 (`armeabi-v7a`) + ARM64 (`arm64-v8a`)** (Android 8.0 - Android 15+)
+            - Live UDP server status, automatic Server Password Noir modal, EN/ID toggle, in-app GTA data cache downloader (no ZArchiver needed), and `SAMP/settings.ini` HUD configurator
+
+            **SHA-256:** `${{ env.APK_SHA256 }}`
+          overwrite_files: true

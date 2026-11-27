@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- GTA San Andreas Noir Design System (Synced with PC Launcher v3.6) -->
+    <color name="srp_bg">#09090B</color>
+    <color name="srp_rail">#0E0E11</color>
+    <color name="srp_surface">#141418</color>
+    <color name="srp_surface_alt">#1B1A20</color>
+    <color name="srp_input_bg">#0B0B0E</color>
+
+    <color name="srp_border">#242329</color>
+    <color name="srp_border_strong">#36343E</color>
+    <color name="srp_border_gold">#5A4517</color>
+
+    <color name="srp_crimson">#D41920</color>
+    <color name="srp_crimson_hover">#EA262E</color>
+    <color name="srp_crimson_dark">#9E1117</color>
+    <color name="srp_crimson_tint">#260D10</color>
+    <color name="srp_crimson_border">#661D23</color>
+
+    <color name="srp_gold">#E8AF38</color>
+    <color name="srp_gold_hover">#F2BF52</color>
+    <color name="srp_gold_tint">#211A0B</color>
+
+    <color name="srp_emerald">#22C55E</color>
+    <color name="srp_emerald_tint">#0B2214</color>
+    <color name="srp_emerald_border">#165930</color>
+
+    <color name="srp_text_main">#F4F1EA</color>
+    <color name="srp_text_sec">#B5AFA6</color>
+    <color name="srp_text_muted">#8E8880</color>
+</resources>

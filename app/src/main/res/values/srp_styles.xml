@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.SearchRP.Noir" parent="Theme.AppCompat.NoActionBar">
+        <item name="colorPrimary">@color/srp_crimson</item>
+        <item name="colorPrimaryDark">@color/srp_bg</item>
+        <item name="colorAccent">@color/srp_gold</item>
+        <item name="android:windowBackground">@color/srp_bg</item>
+        <item name="android:statusBarColor">@color/srp_bg</item>
+        <item name="android:navigationBarColor">@color/srp_rail</item>
+        <item name="android:textColorPrimary">@color/srp_text_main</item>
+        <item name="android:textColorSecondary">@color/srp_text_sec</item>
+        <item name="android:colorControlActivated">@color/srp_gold</item>
+        <item name="android:colorControlNormal">@color/srp_border_strong</item>
+    </style>
+
+    <style name="Theme.SearchRP.Dialog" parent="Theme.AppCompat.Dialog">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowIsFloating">true</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="windowNoTitle">true</item>
+        <item name="android:backgroundDimEnabled">true</item>
+        <item name="android:backgroundDimAmount">0.72</item>
+        <item name="colorAccent">@color/srp_gold</item>
+    </style>
+</resources>

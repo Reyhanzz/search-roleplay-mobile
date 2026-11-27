@@ -1,0 +1,1445 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/srp_bg"
+    android:orientation="vertical">
+
+    <!-- ==================== TOP NOIR HEADER ==================== -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="62dp"
+        android:background="@color/srp_rail"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="16dp"
+        android:paddingEnd="14dp">
+
+        <ImageView
+            android:layout_width="38dp"
+            android:layout_height="38dp"
+            android:contentDescription="Search Roleplay"
+            android:src="@drawable/logo" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/bebas_neue"
+                android:includeFontPadding="false"
+                android:letterSpacing="0.04"
+                android:text="SEARCH ROLEPLAY"
+                android:textColor="@color/srp_text_main"
+                android:textSize="22sp" />
+
+            <TextView
+                android:id="@+id/tv_brand_sub"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:includeFontPadding="false"
+                android:fontFamily="@font/barlow_semibold"
+                android:letterSpacing="0.08"
+                android:text="OPEN.MP  |  MOBILE CLIENT"
+                android:textColor="@color/srp_gold"
+                android:textSize="9.5sp" />
+        </LinearLayout>
+
+        <!-- Live EN / ID Toggle Pill -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="28dp"
+            android:background="@drawable/srp_card_bg"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:padding="2dp">
+
+            <TextView
+                android:id="@+id/btn_lang_en"
+                android:layout_width="34dp"
+                android:layout_height="match_parent"
+                android:background="@drawable/srp_pill_lang_active"
+                android:fontFamily="@font/barlow_bold"
+                android:gravity="center"
+                android:text="EN"
+                android:textColor="@color/srp_text_main"
+                android:textSize="10.5sp" />
+
+            <TextView
+                android:id="@+id/btn_lang_id"
+                android:layout_width="34dp"
+                android:layout_height="match_parent"
+                android:background="@drawable/srp_pill_lang_idle"
+                android:fontFamily="@font/barlow_bold"
+                android:gravity="center"
+                android:text="ID"
+                android:textColor="@color/srp_text_muted"
+                android:textSize="10.5sp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/srp_border" />
+
+    <!-- ==================== SCROLLABLE CONTENT HOST ==================== -->
+    <ScrollView
+        android:id="@+id/main_scroll"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:fillViewport="true"
+        android:padding="14dp">
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <!-- ==================== TAB 1: HOME ==================== -->
+            <LinearLayout
+                android:id="@+id/tab_home"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <!-- Dynamic Notice / Update Banner -->
+                <LinearLayout
+                    android:id="@+id/banner_notice"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="12dp"
+                    android:background="@drawable/srp_card_gold_bg"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:padding="12dp"
+                    android:visibility="gone">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/banner_notice_tag"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:fontFamily="@font/barlow_bold"
+                            android:text="UPDATE AVAILABLE"
+                            android:textColor="@color/srp_gold"
+                            android:textSize="10sp" />
+
+                        <TextView
+                            android:id="@+id/banner_notice_msg"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:fontFamily="@font/barlow_regular"
+                            android:text=""
+                            android:textColor="@color/srp_text_main"
+                            android:textSize="12sp" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/banner_notice_action"
+                        android:layout_width="wrap_content"
+                        android:layout_height="32dp"
+                        android:layout_marginStart="10dp"
+                        android:background="@drawable/srp_btn_gold"
+                        android:fontFamily="@font/barlow_bold"
+                        android:gravity="center"
+                        android:paddingStart="12dp"
+                        android:paddingEnd="12dp"
+                        android:text="Update"
+                        android:textColor="@color/srp_bg"
+                        android:textSize="11.5sp" />
+                </LinearLayout>
+
+                <!-- Hero Server Status Card -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/srp_hero_bg"
+                    android:orientation="vertical">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+
+                        <!-- Top Pill Row: ONLINE + LOCKED + IC TIME + Refresh -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+
+                            <LinearLayout
+                                android:id="@+id/pill_status"
+                                android:layout_width="wrap_content"
+                                android:layout_height="24dp"
+                                android:background="@drawable/srp_pill_gold"
+                                android:gravity="center_vertical"
+                                android:orientation="horizontal"
+                                android:paddingStart="8dp"
+                                android:paddingEnd="9dp">
+
+                                <View
+                                    android:id="@+id/dot_status"
+                                    android:layout_width="7dp"
+                                    android:layout_height="7dp"
+                                    android:background="@drawable/srp_dot_gold" />
+
+                                <TextView
+                                    android:id="@+id/tv_status_pill"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="6dp"
+                                    android:fontFamily="@font/barlow_bold"
+                                    android:text="CHECKING..."
+                                    android:textColor="@color/srp_gold"
+                                    android:textSize="10sp" />
+                            </LinearLayout>
+
+                            <!-- Dynamic Gold LOCKED Badge -->
+                            <LinearLayout
+                                android:id="@+id/pill_hero_locked"
+                                android:layout_width="wrap_content"
+                                android:layout_height="24dp"
+                                android:layout_marginStart="7dp"
+                                android:background="@drawable/srp_pill_gold"
+                                android:gravity="center_vertical"
+                                android:orientation="horizontal"
+                                android:paddingStart="7dp"
+                                android:paddingEnd="8dp"
+                                android:visibility="gone">
+
+                                <ImageView
+                                    android:layout_width="11dp"
+                                    android:layout_height="11dp"
+                                    android:src="@drawable/ic_srp_lock"
+                                    android:tint="@color/srp_gold" />
+
+                                <TextView
+                                    android:id="@+id/tv_hero_locked"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="4dp"
+                                    android:fontFamily="@font/barlow_bold"
+                                    android:text="LOCKED"
+                                    android:textColor="@color/srp_gold"
+                                    android:textSize="10sp" />
+                            </LinearLayout>
+
+                            <TextView
+                                android:id="@+id/tv_ic_clock"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="8dp"
+                                android:layout_weight="1"
+                                android:ellipsize="end"
+                                android:fontFamily="monospace"
+                                android:maxLines="1"
+                                android:text=""
+                                android:textColor="@color/srp_gold"
+                                android:textSize="10.5sp" />
+
+                            <LinearLayout
+                                android:id="@+id/btn_refresh"
+                                android:layout_width="wrap_content"
+                                android:layout_height="28dp"
+                                android:background="@drawable/srp_btn_ghost"
+                                android:clickable="true"
+                                android:focusable="true"
+                                android:gravity="center_vertical"
+                                android:orientation="horizontal"
+                                android:paddingStart="9dp"
+                                android:paddingEnd="10dp">
+
+                                <ImageView
+                                    android:layout_width="13dp"
+                                    android:layout_height="13dp"
+                                    android:src="@drawable/ic_srp_refresh"
+                                    android:tint="@color/srp_text_main" />
+
+                                <TextView
+                                    android:id="@+id/tv_btn_refresh"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="5dp"
+                                    android:fontFamily="@font/barlow_semibold"
+                                    android:text="Refresh"
+                                    android:textColor="@color/srp_text_main"
+                                    android:textSize="11sp" />
+                            </LinearLayout>
+                        </LinearLayout>
+
+                        <!-- Hostname & Subtitle -->
+                        <TextView
+                            android:id="@+id/tv_hostname"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:ellipsize="end"
+                            android:fontFamily="@font/bebas_neue"
+                            android:letterSpacing="0.03"
+                            android:maxLines="1"
+                            android:text="SEARCH ROLEPLAY"
+                            android:textColor="@color/srp_text_main"
+                            android:textSize="27sp" />
+
+                        <TextView
+                            android:id="@+id/tv_subtitle"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="1dp"
+                            android:ellipsize="end"
+                            android:fontFamily="@font/barlow_regular"
+                            android:maxLines="1"
+                            android:text="Checking server status..."
+                            android:textColor="@color/srp_text_sec"
+                            android:textSize="12sp" />
+
+                        <!-- 3 Telemetry Stats -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="14dp"
+                            android:orientation="horizontal">
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:orientation="vertical">
+
+                                <TextView
+                                    android:id="@+id/lbl_stat_players"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:fontFamily="@font/barlow_semibold"
+                                    android:text="PLAYERS"
+                                    android:textColor="@color/srp_text_muted"
+                                    android:textSize="9.5sp" />
+
+                                <TextView
+                                    android:id="@+id/tv_stat_players"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:fontFamily="@font/bebas_neue"
+                                    android:text="-- / --"
+                                    android:textColor="@color/srp_text_main"
+                                    android:textSize="24sp" />
+                            </LinearLayout>
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:orientation="vertical">
+
+                                <TextView
+                                    android:id="@+id/lbl_stat_ping"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:fontFamily="@font/barlow_semibold"
+                                    android:text="PING"
+                                    android:textColor="@color/srp_text_muted"
+                                    android:textSize="9.5sp" />
+
+                                <TextView
+                                    android:id="@+id/tv_stat_ping"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:fontFamily="@font/bebas_neue"
+                                    android:text="-- MS"
+                                    android:textColor="@color/srp_emerald"
+                                    android:textSize="24sp" />
+                            </LinearLayout>
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1.2"
+                                android:orientation="vertical">
+
+                                <TextView
+                                    android:id="@+id/lbl_stat_gamemode"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:fontFamily="@font/barlow_semibold"
+                                    android:text="GAMEMODE"
+                                    android:textColor="@color/srp_text_muted"
+                                    android:textSize="9.5sp" />
+
+                                <TextView
+                                    android:id="@+id/tv_stat_gamemode"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:ellipsize="end"
+                                    android:fontFamily="@font/bebas_neue"
+                                    android:maxLines="1"
+                                    android:text="ROLEPLAY"
+                                    android:textColor="@color/srp_gold"
+                                    android:textSize="22sp" />
+                            </LinearLayout>
+                        </LinearLayout>
+
+                        <!-- Capacity Bar -->
+                        <ProgressBar
+                            android:id="@+id/bar_capacity"
+                            style="?android:attr/progressBarStyleHorizontal"
+                            android:layout_width="match_parent"
+                            android:layout_height="4dp"
+                            android:layout_marginTop="8dp"
+                            android:max="100"
+                            android:progress="0"
+                            android:progressDrawable="@drawable/srp_progress_crimson" />
+
+                        <!-- Tap to Copy Server IP Strip -->
+                        <LinearLayout
+                            android:id="@+id/row_copy_ip"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:background="@drawable/srp_rail_box_bg"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:paddingStart="10dp"
+                            android:paddingTop="8dp"
+                            android:paddingEnd="10dp"
+                            android:paddingBottom="8dp">
+
+                            <TextView
+                                android:id="@+id/tv_server_ip"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:fontFamily="monospace"
+                                android:text="151.246.170.113:7777"
+                                android:textColor="@color/srp_text_main"
+                                android:textSize="12.5sp"
+                                android:textStyle="bold" />
+
+                            <ImageView
+                                android:id="@+id/ico_copy_ip"
+                                android:layout_width="15dp"
+                                android:layout_height="15dp"
+                                android:src="@drawable/ic_srp_copy"
+                                android:tint="@color/srp_gold" />
+                        </LinearLayout>
+                    </LinearLayout>
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="2dp"
+                        android:background="@color/srp_crimson" />
+                </LinearLayout>
+
+                <!-- Launch Console Card -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:background="@drawable/srp_card_bg"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <!-- Username Header Row -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:id="@+id/lbl_username"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:fontFamily="@font/barlow_semibold"
+                            android:text="ACCOUNT / UCP USERNAME"
+                            android:textColor="@color/srp_text_main"
+                            android:textSize="11sp" />
+
+                        <LinearLayout
+                            android:id="@+id/badge_pw_home"
+                            android:layout_width="wrap_content"
+                            android:layout_height="20dp"
+                            android:layout_marginStart="8dp"
+                            android:background="@drawable/srp_pill_gold"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:paddingStart="6dp"
+                            android:paddingEnd="7dp"
+                            android:visibility="gone">
+
+                            <ImageView
+                                android:layout_width="10dp"
+                                android:layout_height="10dp"
+                                android:src="@drawable/ic_srp_lock"
+                                android:tint="@color/srp_gold" />
+
+                            <TextView
+                                android:id="@+id/tv_badge_pw_home"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="4dp"
+                                android:fontFamily="@font/barlow_bold"
+                                android:text="PASSWORD"
+                                android:textColor="@color/srp_gold"
+                                android:textSize="9sp" />
+                        </LinearLayout>
+
+                        <View
+                            android:layout_width="0dp"
+                            android:layout_height="1dp"
+                            android:layout_weight="1" />
+
+                        <TextView
+                            android:id="@+id/link_no_ucp"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:fontFamily="@font/barlow_semibold"
+                            android:padding="2dp"
+                            android:text="No UCP?"
+                            android:textColor="@color/srp_gold"
+                            android:textSize="11sp" />
+                    </LinearLayout>
+
+                    <EditText
+                        android:id="@+id/edit_username"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:layout_marginTop="8dp"
+                        android:background="@drawable/srp_input_bg"
+                        android:fontFamily="@font/barlow_medium"
+                        android:hint="Enter UCP Username..."
+                        android:imeOptions="actionDone"
+                        android:inputType="textNoSuggestions"
+                        android:maxLength="20"
+                        android:maxLines="1"
+                        android:paddingStart="12dp"
+                        android:paddingEnd="12dp"
+                        android:singleLine="true"
+                        android:textColor="@color/srp_text_main"
+                        android:textColorHint="@color/srp_text_muted"
+                        android:textSize="15sp" />
+
+                    <!-- Primary PLAY NOW / DOWNLOAD DATA CTA -->
+                    <LinearLayout
+                        android:id="@+id/btn_play"
+                        android:layout_width="match_parent"
+                        android:layout_height="52dp"
+                        android:layout_marginTop="12dp"
+                        android:background="@drawable/srp_btn_crimson"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center"
+                        android:orientation="horizontal">
+
+                        <ImageView
+                            android:id="@+id/ico_btn_play"
+                            android:layout_width="18dp"
+                            android:layout_height="18dp"
+                            android:layout_marginEnd="8dp"
+                            android:src="@drawable/ic_srp_play"
+                            android:tint="@color/srp_text_main" />
+
+                        <TextView
+                            android:id="@+id/tv_btn_play"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:fontFamily="@font/bebas_neue"
+                            android:letterSpacing="0.06"
+                            android:text="PLAY NOW"
+                            android:textColor="@color/srp_text_main"
+                            android:textSize="23sp" />
+                    </LinearLayout>
+
+                    <!-- Cache & Launch Status Footer -->
+                    <TextView
+                        android:id="@+id/tv_data_status"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:fontFamily="@font/barlow_semibold"
+                        android:text="Checking GTA SA Android data..."
+                        android:textColor="@color/srp_emerald"
+                        android:textSize="11.5sp" />
+
+                    <TextView
+                        android:id="@+id/tv_launch_hint"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:fontFamily="@font/barlow_regular"
+                        android:text="Tap PLAY NOW to connect via OpenMP Mobile."
+                        android:textColor="@color/srp_text_muted"
+                        android:textSize="11sp" />
+
+                    <!-- Inline Download / Extraction Progress Box -->
+                    <LinearLayout
+                        android:id="@+id/panel_download"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:background="@drawable/srp_rail_box_bg"
+                        android:orientation="vertical"
+                        android:padding="12dp"
+                        android:visibility="gone">
+
+                        <ProgressBar
+                            android:id="@+id/bar_download"
+                            style="?android:attr/progressBarStyleHorizontal"
+                            android:layout_width="match_parent"
+                            android:layout_height="6dp"
+                            android:max="100"
+                            android:progress="0"
+                            android:progressDrawable="@drawable/srp_progress_gold" />
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+
+                            <TextView
+                                android:id="@+id/tv_dl_stats"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:fontFamily="monospace"
+                                android:text="Connecting..."
+                                android:textColor="@color/srp_text_sec"
+                                android:textSize="10.5sp" />
+
+                            <TextView
+                                android:id="@+id/btn_dl_cancel"
+                                android:layout_width="wrap_content"
+                                android:layout_height="26dp"
+                                android:layout_marginStart="8dp"
+                                android:background="@drawable/srp_btn_ghost"
+                                android:fontFamily="@font/barlow_semibold"
+                                android:gravity="center"
+                                android:paddingStart="10dp"
+                                android:paddingEnd="10dp"
+                                android:text="Cancel"
+                                android:textColor="@color/srp_crimson_hover"
+                                android:textSize="11sp" />
+                        </LinearLayout>
+                    </LinearLayout>
+                </LinearLayout>
+
+                <!-- Quick Community Row -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:orientation="horizontal">
+
+                    <LinearLayout
+                        android:id="@+id/btn_home_discord"
+                        android:layout_width="0dp"
+                        android:layout_height="44dp"
+                        android:layout_marginEnd="6dp"
+                        android:layout_weight="1"
+                        android:background="@drawable/srp_btn_ghost"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center"
+                        android:orientation="horizontal">
+
+                        <ImageView
+                            android:layout_width="16dp"
+                            android:layout_height="16dp"
+                            android:src="@drawable/ic_srp_chat"
+                            android:tint="@color/srp_gold" />
+
+                        <TextView
+                            android:id="@+id/tv_home_discord"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            android:fontFamily="@font/barlow_semibold"
+                            android:text="Discord"
+                            android:textColor="@color/srp_text_main"
+                            android:textSize="13sp" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/btn_home_website"
+                        android:layout_width="0dp"
+                        android:layout_height="44dp"
+                        android:layout_marginStart="6dp"
+                        android:layout_weight="1"
+                        android:background="@drawable/srp_btn_ghost"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center"
+                        android:orientation="horizontal">
+
+                        <ImageView
+                            android:layout_width="16dp"
+                            android:layout_height="16dp"
+                            android:src="@drawable/ic_srp_globe"
+                            android:tint="@color/srp_gold" />
+
+                        <TextView
+                            android:id="@+id/tv_home_website"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            android:fontFamily="@font/barlow_semibold"
+                            android:text="Website"
+                            android:textColor="@color/srp_text_main"
+                            android:textSize="13sp" />
+                    </LinearLayout>
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- ==================== TAB 2: UCP GUIDE ==================== -->
+            <LinearLayout
+                android:id="@+id/tab_ucp"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/tv_ucp_title"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/bebas_neue"
+                    android:letterSpacing="0.04"
+                    android:text="UCP REGISTRATION GUIDE"
+                    android:textColor="@color/srp_text_main"
+                    android:textSize="26sp" />
+
+                <TextView
+                    android:id="@+id/tv_ucp_sub"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="12dp"
+                    android:fontFamily="@font/barlow_regular"
+                    android:text="Follow these 4 steps to create your account before playing."
+                    android:textColor="@color/srp_text_sec"
+                    android:textSize="12.5sp" />
+
+                <!-- Step 1 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="10dp"
+                    android:background="@drawable/srp_card_bg"
+                    android:orientation="vertical"
+                    android:padding="14dp">
+
+                    <TextView
+                        android:id="@+id/tv_s1_t"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/barlow_bold"
+                        android:text="01  •  Join Official Discord"
+                        android:textColor="@color/srp_gold"
+                        android:textSize="13.5sp" />
+
+                    <TextView
+                        android:id="@+id/tv_s1_d"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:fontFamily="@font/barlow_regular"
+                        android:textColor="@color/srp_text_sec"
+                        android:textSize="12.5sp" />
+                </LinearLayout>
+
+                <!-- Step 2 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="10dp"
+                    android:background="@drawable/srp_card_bg"
+                    android:orientation="vertical"
+                    android:padding="14dp">
+
+                    <TextView
+                        android:id="@+id/tv_s2_t"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/barlow_bold"
+                        android:text="02  •  Verify Discord"
+                        android:textColor="@color/srp_gold"
+                        android:textSize="13.5sp" />
+
+                    <TextView
+                        android:id="@+id/tv_s2_d"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:fontFamily="@font/barlow_regular"
+                        android:textColor="@color/srp_text_sec"
+                        android:textSize="12.5sp" />
+                </LinearLayout>
+
+                <!-- Step 3 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="10dp"
+                    android:background="@drawable/srp_card_bg"
+                    android:orientation="vertical"
+                    android:padding="14dp">
+
+                    <TextView
+                        android:id="@+id/tv_s3_t"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/barlow_bold"
+                        android:text="03  •  Open UCP Panel"
+                        android:textColor="@color/srp_gold"
+                        android:textSize="13.5sp" />
+
+                    <TextView
+                        android:id="@+id/tv_s3_d"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:fontFamily="@font/barlow_regular"
+                        android:textColor="@color/srp_text_sec"
+                        android:textSize="12.5sp" />
+                </LinearLayout>
+
+                <!-- Step 4 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="14dp"
+                    android:background="@drawable/srp_card_bg"
+                    android:orientation="vertical"
+                    android:padding="14dp">
+
+                    <TextView
+                        android:id="@+id/tv_s4_t"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/barlow_bold"
+                        android:text="04  •  Play &amp; Create IC Character"
+                        android:textColor="@color/srp_gold"
+                        android:textSize="13.5sp" />
+
+                    <TextView
+                        android:id="@+id/tv_s4_d"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:fontFamily="@font/barlow_regular"
+                        android:textColor="@color/srp_text_sec"
+                        android:textSize="12.5sp" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/btn_ucp_copy"
+                        android:layout_width="112dp"
+                        android:layout_height="46dp"
+                        android:background="@drawable/srp_btn_ghost"
+                        android:fontFamily="@font/barlow_semibold"
+                        android:gravity="center"
+                        android:text="Copy Link"
+                        android:textColor="@color/srp_text_sec"
+                        android:textSize="13sp" />
+
+                    <TextView
+                        android:id="@+id/btn_ucp_discord"
+                        android:layout_width="0dp"
+                        android:layout_height="46dp"
+                        android:layout_marginStart="10dp"
+                        android:layout_weight="1"
+                        android:background="@drawable/srp_btn_crimson"
+                        android:fontFamily="@font/bebas_neue"
+                        android:gravity="center"
+                        android:letterSpacing="0.05"
+                        android:text="OPEN DISCORD"
+                        android:textColor="@color/srp_text_main"
+                        android:textSize="20sp" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- ==================== TAB 3: SETTINGS ==================== -->
+            <LinearLayout
+                android:id="@+id/tab_settings"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/tv_cfg_title"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="10dp"
+                    android:fontFamily="@font/bebas_neue"
+                    android:letterSpacing="0.04"
+                    android:text="CLIENT &amp; DISPLAY SETTINGS"
+                    android:textColor="@color/srp_text_main"
+                    android:textSize="26sp" />
+
+                <!-- Performance & HUD Settings Card -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/srp_card_bg"
+                    android:orientation="vertical"
+                    android:padding="14dp">
+
+                    <TextView
+                        android:id="@+id/tv_cfg_sec_perf"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/barlow_bold"
+                        android:text="GAMEPLAY &amp; HUD (SAMP/SETTINGS.INI)"
+                        android:textColor="@color/srp_gold"
+                        android:textSize="10.5sp" />
+
+                    <!-- FPS Limit Row -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:id="@+id/lbl_cfg_fps"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:fontFamily="@font/barlow_semibold"
+                            android:text="FPS Limit"
+                            android:textColor="@color/srp_text_main"
+                            android:textSize="13sp" />
+
+                        <TextView
+                            android:id="@+id/fps_30"
+                            android:layout_width="42dp"
+                            android:layout_height="30dp"
+                            android:background="@drawable/srp_btn_ghost"
+                            android:fontFamily="monospace"
+                            android:gravity="center"
+                            android:text="30"
+                            android:textColor="@color/srp_text_sec"
+                            android:textSize="12sp" />
+
+                        <TextView
+                            android:id="@+id/fps_60"
+                            android:layout_width="42dp"
+                            android:layout_height="30dp"
+                            android:layout_marginStart="5dp"
+                            android:background="@drawable/srp_pill_lang_active"
+                            android:fontFamily="monospace"
+                            android:gravity="center"
+                            android:text="60"
+                            android:textColor="@color/srp_text_main"
+                            android:textSize="12sp" />
+
+                        <TextView
+                            android:id="@+id/fps_90"
+                            android:layout_width="42dp"
+                            android:layout_height="30dp"
+                            android:layout_marginStart="5dp"
+                            android:background="@drawable/srp_btn_ghost"
+                            android:fontFamily="monospace"
+                            android:gravity="center"
+                            android:text="90"
+                            android:textColor="@color/srp_text_sec"
+                            android:textSize="12sp" />
+
+                        <TextView
+                            android:id="@+id/fps_120"
+                            android:layout_width="46dp"
+                            android:layout_height="30dp"
+                            android:layout_marginStart="5dp"
+                            android:background="@drawable/srp_btn_ghost"
+                            android:fontFamily="monospace"
+                            android:gravity="center"
+                            android:text="120"
+                            android:textColor="@color/srp_text_sec"
+                            android:textSize="12sp" />
+                    </LinearLayout>
+
+                    <!-- Chat Lines & Font Size Steppers -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:orientation="horizontal">
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginEnd="6dp"
+                            android:layout_weight="1"
+                            android:background="@drawable/srp_rail_box_bg"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:padding="8dp">
+
+                            <TextView
+                                android:id="@+id/lbl_cfg_chat"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:fontFamily="@font/barlow_medium"
+                                android:text="Chat Lines"
+                                android:textColor="@color/srp_text_sec"
+                                android:textSize="11.5sp" />
+
+                            <TextView
+                                android:id="@+id/btn_chat_minus"
+                                android:layout_width="26dp"
+                                android:layout_height="26dp"
+                                android:background="@drawable/srp_btn_ghost"
+                                android:gravity="center"
+                                android:text="-"
+                                android:textColor="@color/srp_text_main"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/tv_chat_val"
+                                android:layout_width="28dp"
+                                android:layout_height="wrap_content"
+                                android:fontFamily="monospace"
+                                android:gravity="center"
+                                android:text="9"
+                                android:textColor="@color/srp_gold"
+                                android:textSize="13sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/btn_chat_plus"
+                                android:layout_width="26dp"
+                                android:layout_height="26dp"
+                                android:background="@drawable/srp_btn_ghost"
+                                android:gravity="center"
+                                android:text="+"
+                                android:textColor="@color/srp_text_main"
+                                android:textStyle="bold" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="6dp"
+                            android:layout_weight="1"
+                            android:background="@drawable/srp_rail_box_bg"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:padding="8dp">
+
+                            <TextView
+                                android:id="@+id/lbl_cfg_font"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:fontFamily="@font/barlow_medium"
+                                android:text="Font Size"
+                                android:textColor="@color/srp_text_sec"
+                                android:textSize="11.5sp" />
+
+                            <TextView
+                                android:id="@+id/btn_font_minus"
+                                android:layout_width="26dp"
+                                android:layout_height="26dp"
+                                android:background="@drawable/srp_btn_ghost"
+                                android:gravity="center"
+                                android:text="-"
+                                android:textColor="@color/srp_text_main"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/tv_font_val"
+                                android:layout_width="28dp"
+                                android:layout_height="wrap_content"
+                                android:fontFamily="monospace"
+                                android:gravity="center"
+                                android:text="30"
+                                android:textColor="@color/srp_gold"
+                                android:textSize="13sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/btn_font_plus"
+                                android:layout_width="26dp"
+                                android:layout_height="26dp"
+                                android:background="@drawable/srp_btn_ghost"
+                                android:gravity="center"
+                                android:text="+"
+                                android:textColor="@color/srp_text_main"
+                                android:textStyle="bold" />
+                        </LinearLayout>
+                    </LinearLayout>
+
+                    <!-- Native INI Switches -->
+                    <androidx.appcompat.widget.SwitchCompat
+                        android:id="@+id/sw_fps_counter"
+                        android:layout_width="match_parent"
+                        android:layout_height="40dp"
+                        android:layout_marginTop="8dp"
+                        android:fontFamily="@font/barlow_medium"
+                        android:text="Show FPS Counter"
+                        android:textColor="@color/srp_text_main"
+                        android:textSize="13sp" />
+
+                    <androidx.appcompat.widget.SwitchCompat
+                        android:id="@+id/sw_android_kb"
+                        android:layout_width="match_parent"
+                        android:layout_height="40dp"
+                        android:fontFamily="@font/barlow_medium"
+                        android:text="Use Native Android Keyboard"
+                        android:textColor="@color/srp_text_main"
+                        android:textSize="13sp" />
+
+                    <androidx.appcompat.widget.SwitchCompat
+                        android:id="@+id/sw_first_person"
+                        android:layout_width="match_parent"
+                        android:layout_height="40dp"
+                        android:fontFamily="@font/barlow_medium"
+                        android:text="First-Person Camera"
+                        android:textColor="@color/srp_text_main"
+                        android:textSize="13sp" />
+
+                    <androidx.appcompat.widget.SwitchCompat
+                        android:id="@+id/sw_cutout"
+                        android:layout_width="match_parent"
+                        android:layout_height="40dp"
+                        android:fontFamily="@font/barlow_medium"
+                        android:text="Fullscreen Display Cutout (Notch)"
+                        android:textColor="@color/srp_text_main"
+                        android:textSize="13sp" />
+
+                    <androidx.appcompat.widget.SwitchCompat
+                        android:id="@+id/sw_hp_text"
+                        android:layout_width="match_parent"
+                        android:layout_height="40dp"
+                        android:fontFamily="@font/barlow_medium"
+                        android:text="Numeric HP &amp; Armour Text"
+                        android:textColor="@color/srp_text_main"
+                        android:textSize="13sp" />
+
+                    <androidx.appcompat.widget.SwitchCompat
+                        android:id="@+id/sw_pc_money"
+                        android:layout_width="match_parent"
+                        android:layout_height="40dp"
+                        android:fontFamily="@font/barlow_medium"
+                        android:text="PC-Style Money HUD"
+                        android:textColor="@color/srp_text_main"
+                        android:textSize="13sp" />
+
+                    <androidx.appcompat.widget.SwitchCompat
+                        android:id="@+id/sw_radar_rect"
+                        android:layout_width="match_parent"
+                        android:layout_height="40dp"
+                        android:fontFamily="@font/barlow_medium"
+                        android:text="Square / Rectangular Radar"
+                        android:textColor="@color/srp_text_main"
+                        android:textSize="13sp" />
+
+                    <androidx.appcompat.widget.SwitchCompat
+                        android:id="@+id/sw_autoaim"
+                        android:layout_width="match_parent"
+                        android:layout_height="40dp"
+                        android:fontFamily="@font/barlow_medium"
+                        android:text="Mobile Auto-Aim"
+                        android:textColor="@color/srp_text_main"
+                        android:textSize="13sp" />
+
+                    <androidx.appcompat.widget.SwitchCompat
+                        android:id="@+id/sw_voice"
+                        android:layout_width="match_parent"
+                        android:layout_height="40dp"
+                        android:fontFamily="@font/barlow_medium"
+                        android:text="In-Game Voice Chat"
+                        android:textColor="@color/srp_text_main"
+                        android:textSize="13sp" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:id="@+id/btn_cfg_reset"
+                            android:layout_width="96dp"
+                            android:layout_height="42dp"
+                            android:background="@drawable/srp_btn_ghost"
+                            android:fontFamily="@font/barlow_semibold"
+                            android:gravity="center"
+                            android:text="Reset"
+                            android:textColor="@color/srp_text_sec"
+                            android:textSize="13sp" />
+
+                        <TextView
+                            android:id="@+id/btn_cfg_save"
+                            android:layout_width="0dp"
+                            android:layout_height="42dp"
+                            android:layout_marginStart="10dp"
+                            android:layout_weight="1"
+                            android:background="@drawable/srp_btn_gold"
+                            android:fontFamily="@font/bebas_neue"
+                            android:gravity="center"
+                            android:letterSpacing="0.05"
+                            android:text="SAVE SETTINGS"
+                            android:textColor="@color/srp_bg"
+                            android:textSize="19sp" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <!-- Game Data, Custom URL, Logs & APK Updates Card -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:background="@drawable/srp_card_bg"
+                    android:orientation="vertical"
+                    android:padding="14dp">
+
+                    <TextView
+                        android:id="@+id/tv_cfg_sec_data"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/barlow_bold"
+                        android:text="GAME DATA &amp; STORAGE"
+                        android:textColor="@color/srp_gold"
+                        android:textSize="10.5sp" />
+
+                    <TextView
+                        android:id="@+id/tv_cfg_storage_path"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:fontFamily="monospace"
+                        android:text="Android/data/com.searchroleplay.mobile/files/"
+                        android:textColor="@color/srp_text_muted"
+                        android:textSize="10.5sp" />
+
+                    <TextView
+                        android:id="@+id/lbl_cfg_data_url"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:fontFamily="@font/barlow_semibold"
+                        android:text="GTA SA ANDROID DATA PACK URL (.ZIP)"
+                        android:textColor="@color/srp_text_sec"
+                        android:textSize="10.5sp" />
+
+                    <EditText
+                        android:id="@+id/edit_data_url"
+                        android:layout_width="match_parent"
+                        android:layout_height="44dp"
+                        android:layout_marginTop="6dp"
+                        android:background="@drawable/srp_input_bg"
+                        android:fontFamily="monospace"
+                        android:hint="https://..."
+                        android:inputType="textUri"
+                        android:maxLines="1"
+                        android:paddingStart="10dp"
+                        android:paddingEnd="10dp"
+                        android:singleLine="true"
+                        android:textColor="@color/srp_text_main"
+                        android:textColorHint="@color/srp_text_muted"
+                        android:textSize="12sp" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:id="@+id/btn_save_url"
+                            android:layout_width="0dp"
+                            android:layout_height="38dp"
+                            android:layout_marginEnd="6dp"
+                            android:layout_weight="1"
+                            android:background="@drawable/srp_btn_ghost"
+                            android:fontFamily="@font/barlow_semibold"
+                            android:gravity="center"
+                            android:text="Save URL"
+                            android:textColor="@color/srp_text_main"
+                            android:textSize="12.5sp" />
+
+                        <TextView
+                            android:id="@+id/btn_cfg_dl_data"
+                            android:layout_width="0dp"
+                            android:layout_height="38dp"
+                            android:layout_marginStart="6dp"
+                            android:layout_weight="1"
+                            android:background="@drawable/srp_btn_crimson"
+                            android:fontFamily="@font/barlow_bold"
+                            android:gravity="center"
+                            android:text="Download Data"
+                            android:textColor="@color/srp_text_main"
+                            android:textSize="12.5sp" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:id="@+id/btn_view_log"
+                            android:layout_width="0dp"
+                            android:layout_height="38dp"
+                            android:layout_marginEnd="6dp"
+                            android:layout_weight="1"
+                            android:background="@drawable/srp_btn_ghost"
+                            android:fontFamily="@font/barlow_semibold"
+                            android:gravity="center"
+                            android:text="View samp_log.txt"
+                            android:textColor="@color/srp_text_sec"
+                            android:textSize="12sp" />
+
+                        <TextView
+                            android:id="@+id/btn_check_apk"
+                            android:layout_width="0dp"
+                            android:layout_height="38dp"
+                            android:layout_marginStart="6dp"
+                            android:layout_weight="1"
+                            android:background="@drawable/srp_btn_ghost"
+                            android:fontFamily="@font/barlow_semibold"
+                            android:gravity="center"
+                            android:text="Check APK Update"
+                            android:textColor="@color/srp_gold"
+                            android:textSize="12sp" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/tv_version_footer"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:fontFamily="monospace"
+                        android:gravity="center"
+                        android:text="Search Roleplay Mobile v1.0.0  •  ARM32 + ARM64"
+                        android:textColor="@color/srp_text_muted"
+                        android:textSize="10.5sp" />
+                </LinearLayout>
+            </LinearLayout>
+        </FrameLayout>
+    </ScrollView>
+
+    <!-- ==================== BOTTOM NAVIGATION BAR ==================== -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/srp_border" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="60dp"
+        android:background="@color/srp_rail"
+        android:orientation="horizontal">
+
+        <LinearLayout
+            android:id="@+id/nav_home"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <ImageView
+                android:id="@+id/nav_home_ico"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@drawable/ic_srp_home"
+                android:tint="@color/srp_gold" />
+
+            <TextView
+                android:id="@+id/nav_home_lbl"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:fontFamily="@font/barlow_semibold"
+                android:text="Home"
+                android:textColor="@color/srp_gold"
+                android:textSize="11sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/nav_ucp"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <ImageView
+                android:id="@+id/nav_ucp_ico"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@drawable/ic_srp_book"
+                android:tint="@color/srp_text_muted" />
+
+            <TextView
+                android:id="@+id/nav_ucp_lbl"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:fontFamily="@font/barlow_semibold"
+                android:text="UCP Guide"
+                android:textColor="@color/srp_text_muted"
+                android:textSize="11sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/nav_settings"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <ImageView
+                android:id="@+id/nav_settings_ico"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@drawable/ic_srp_sliders"
+                android:tint="@color/srp_text_muted" />
+
+            <TextView
+                android:id="@+id/nav_settings_lbl"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:fontFamily="@font/barlow_semibold"
+                android:text="Settings"
+                android:textColor="@color/srp_text_muted"
+                android:textSize="11sp" />
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>

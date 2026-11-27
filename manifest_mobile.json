@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "apk": {
+    "version": "1.0.0",
+    "version_code": 100,
+    "mandatory": false,
+    "download_url": "https://github.com/Reyhanzz/search-roleplay-mobile/releases/latest/download/SearchRoleplayMobile.apk",
+    "sha256": "",
+    "changelog": [
+      "Official Search Roleplay Mobile All-in-One Launcher & Client (ARM32 + ARM64)",
+      "Added live UDP server telemetry, automatic Server Password Noir modal, and live EN/ID toggle",
+      "Added zero-ZArchiver in-app GTA SA Android 2.10 data downloader & SAMP/settings.ini HUD configurator"
+    ]
+  },
+  "remote_config": {
+    "server_ip": "151.246.170.113",
+    "server_port": 7777,
+    "discord_url": "https://discord.gg/f8HzxbHXDs",
+    "website_url": "https://searchrp.netlify.app/",
+    "android_data_url": "",
+    "announcement": {
+      "enabled": false,
+      "level": "info",
+      "title": "",
+      "message": "",
+      "url": ""
+    },
+    "ucp_channels": {
+      "verify": "#verify-discord",
+      "panel": "#panel-ucp"
+    }
+  }
+}
