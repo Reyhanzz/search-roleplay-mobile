@@ -21,7 +21,7 @@ public final class SrpConfig {
     public static final int DEFAULT_SERVER_PORT = 7777;
     public static final String DEFAULT_DISCORD_URL = "https://discord.gg/f8HzxbHXDs";
     public static final String DEFAULT_WEBSITE_URL = "https://searchrp.netlify.app/";
-    public static final String DEFAULT_DATA_URL = "";
+    public static final String DEFAULT_DATA_URL = "https://drive.google.com/file/d/1Ayv5SVww8AS_2PrG9popALZLexgXn9ZJ/view?usp=drive_link";
 
     public static final String GITHUB_MOBILE_REPO = "Reyhanzz/search-roleplay-mobile";
     public static final String MANIFEST_MOBILE_RAW =

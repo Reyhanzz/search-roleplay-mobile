@@ -17,7 +17,7 @@
     "server_port": 7777,
     "discord_url": "https://discord.gg/f8HzxbHXDs",
     "website_url": "https://searchrp.netlify.app/",
-    "android_data_url": "",
+    "android_data_url": "https://drive.google.com/file/d/1Ayv5SVww8AS_2PrG9popALZLexgXn9ZJ/view?usp=drive_link",
     "announcement": {
       "enabled": false,
       "level": "info",
