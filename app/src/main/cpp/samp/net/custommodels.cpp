@@ -484,7 +484,45 @@ RwTexture* CreateRwTextureFromRgba(const char* texName, const char* maskName, in
     if (rgba.size() < static_cast<size_t>(width) * static_cast<size_t>(height) * 4u)
         return nullptr;
 
-    RwImage* img = RwImageCreate(width, height, 32);
+    const uint8_t* srcPixels = rgba.data();
+    int curW = width;
+    int curH = height;
+    std::vector<uint8_t> scaled;
+#if VER_x32
+    // Cap decoded 0.3.DL RGBA textures to 512x512 on 32-bit Android to prevent VRAM OOM on 2 GB devices.
+    constexpr int kMaxDim = 512;
+    while (curW > kMaxDim || curH > kMaxDim)
+    {
+        int nextW = std::max(1, curW / 2);
+        int nextH = std::max(1, curH / 2);
+        std::vector<uint8_t> tmp(static_cast<size_t>(nextW) * static_cast<size_t>(nextH) * 4u);
+        for (int y = 0; y < nextH; ++y)
+        {
+            int sy0 = y * 2;
+            int sy1 = std::min(sy0 + 1, curH - 1);
+            for (int x = 0; x < nextW; ++x)
+            {
+                int sx0 = x * 2;
+                int sx1 = std::min(sx0 + 1, curW - 1);
+                const uint8_t* p00 = srcPixels + (static_cast<size_t>(sy0) * curW + sx0) * 4u;
+                const uint8_t* p10 = srcPixels + (static_cast<size_t>(sy0) * curW + sx1) * 4u;
+                const uint8_t* p01 = srcPixels + (static_cast<size_t>(sy1) * curW + sx0) * 4u;
+                const uint8_t* p11 = srcPixels + (static_cast<size_t>(sy1) * curW + sx1) * 4u;
+                uint8_t* dst = tmp.data() + (static_cast<size_t>(y) * nextW + x) * 4u;
+                for (int c = 0; c < 4; ++c)
+                {
+                    dst[c] = static_cast<uint8_t>((static_cast<unsigned>(p00[c]) + p10[c] + p01[c] + p11[c] + 2u) >> 2);
+                }
+            }
+        }
+        scaled.swap(tmp);
+        srcPixels = scaled.data();
+        curW = nextW;
+        curH = nextH;
+    }
+#endif
+
+    RwImage* img = RwImageCreate(curW, curH, 32);
     if (!img) return nullptr;
     if (!RwImageAllocatePixels(img))
     {
@@ -492,11 +530,11 @@ RwTexture* CreateRwTextureFromRgba(const char* texName, const char* maskName, in
         return nullptr;
     }
 
-    size_t rowBytes = static_cast<size_t>(width) * 4u;
-    for (int y = 0; y < height; ++y)
+    size_t rowBytes = static_cast<size_t>(curW) * 4u;
+    for (int y = 0; y < curH; ++y)
     {
         memcpy(img->cpPixels + static_cast<size_t>(y) * static_cast<size_t>(img->stride),
-               rgba.data() + static_cast<size_t>(y) * rowBytes,
+               srcPixels + static_cast<size_t>(y) * rowBytes,
                rowBytes);
     }
 
@@ -1005,9 +1043,10 @@ void SanitizeNodeNamePayload(const uint8_t* body, size_t bodySize, std::string& 
         ++effLen;
     }
 
-    // GTA SA NodeNameStreamRead writes frameNodeName[binaryLength] = '\0' into a 24-byte RwFrame slot,
-    // and CFileLoader::SetRelatedModelInfoCB copies into char name[24] with a stack canary.
-    if (effLen <= 23u)
+    // GTA SA NodeNameStreamRead stores into a 24-byte RwFrame slot, while
+    // CFileLoader::SetRelatedModelInfoCB & FindRelatedModelInfoCB pass char name[20]
+    // (21 bytes before the ARM32 stack canary). Clamp strictly to <= 19 chars so both are safe.
+    if (effLen <= 19u)
     {
         outName.assign(reinterpret_cast<const char*>(body), effLen);
         return;
@@ -1019,7 +1058,7 @@ void SanitizeNodeNamePayload(const uint8_t* body, size_t bodySize, std::string& 
         (body[effLen - 2] == 'a' || body[effLen - 2] == 'A') &&
         (body[effLen - 1] == 'm' || body[effLen - 1] == 'M'))
     {
-        outName.assign(reinterpret_cast<const char*>(body), 19u);
+        outName.assign(reinterpret_cast<const char*>(body), 15u);
         outName.append(reinterpret_cast<const char*>(body + effLen - 4), 4u);
         return;
     }
@@ -1029,12 +1068,12 @@ void SanitizeNodeNamePayload(const uint8_t* body, size_t bodySize, std::string& 
         (body[effLen - 2] == 'l' || body[effLen - 2] == 'L') &&
         body[effLen - 1] == '0')
     {
-        outName.assign(reinterpret_cast<const char*>(body), 20u);
+        outName.assign(reinterpret_cast<const char*>(body), 16u);
         outName.append(reinterpret_cast<const char*>(body + effLen - 3), 3u);
         return;
     }
 
-    outName.assign(reinterpret_cast<const char*>(body), 23u);
+    outName.assign(reinterpret_cast<const char*>(body), 19u);
 }
 
 void SanitizeRwChunkSequence(const uint8_t* data, size_t len, std::vector<uint8_t>& out, int depth, int& outFixedCount)
@@ -1053,7 +1092,7 @@ void SanitizeRwChunkSequence(const uint8_t* data, size_t len, std::vector<uint8_
 
         const uint8_t* body = data + pos + 12u;
 
-        if (id == kRwIdNodeName && size > 23u)
+        if (id == kRwIdNodeName && size > 19u)
         {
             std::string trimmed;
             SanitizeNodeNamePayload(body, size, trimmed);
@@ -1168,8 +1207,8 @@ bool LoadCustomModelIntoEngine(CustomModelEntry& entry)
         return false;
     }
 
-    // Clamp oversized RW Frame NodeName (0x0253F2FE) chunks to <= 23 bytes before ConvertBufferToObject
-    // to prevent heap overflow in NodeNameStreamRead and stack canary SIGABRT in SetRelatedModelInfoCB.
+    // Clamp oversized RW Frame NodeName (0x0253F2FE) chunks to <= 19 bytes before ConvertBufferToObject
+    // to prevent heap overflow in NodeNameStreamRead and stack canary SIGABRT in SetRelatedModelInfoCB (char name[20]).
     SanitizeDffNodeNamesInPlace(dffBytes, entry.dffCrc);
 
     // Pad DFF to STREAMING_SECTOR_SIZE (2048 bytes) for CStreaming::ConvertBufferToObject

@@ -1,15 +1,14 @@
 {
   "schema_version": 1,
   "apk": {
-    "version": "1.0.7",
-    "version_code": 107,
+    "version": "1.0.8",
+    "version_code": 108,
     "mandatory": true,
     "download_url": "https://github.com/Reyhanzz/search-roleplay-mobile/releases/latest/download/SearchRoleplayMobile.apk",
     "sha256": "",
     "changelog": [
-      "Fixed fatal ARM32 crash in DrawTextureUV (was jumping in Thumb mode into ARM .plt 0x1974EC+1 and passing RwTexture* instead of CSprite2d*) and uninitialized tex pointer / double-free in CTextDraw",
-      "Fixed TextDrawPool bounds checks, ScrShowTextDraw text length clamping, and JNI ShowDialog thread attachment + local ref cleanup",
-      "Hardened Java DialogManager & SAMP activity (dialogId < 0 hide handling, LayoutParams instanceof guards, trailing-tab StringIndexOutOfBounds fix, Back button no longer exits game while typing, and full Java uncaught exception logging)"
+      "Fixed persistent ARM32 SIGABRT (__stack_chk_fail) in CFileLoader::SetRelatedModelInfoCB by clamping DFF NodeName chunks and GetNameAndDamage output to <= 19 chars (matching libGTASA char name[20] stack buffer)",
+      "Added 512px texture downscaling for 0.3.DL custom RGBA textures on 32-bit Android to reduce VRAM usage and prevent OOM on 2 GB RAM devices"
     ]
   },
   "remote_config": {

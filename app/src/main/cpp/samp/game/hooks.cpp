@@ -1019,10 +1019,18 @@ void GetNameAndDamage_hook(const char* nodeName, char* outName, bool& outIsDamag
 		copyLen = len - 3;
 	}
 
-	// CFileLoader::SetRelatedModelInfoCB passes a 24-byte stack buffer protected by a stack canary.
-	if (copyLen > 23)
+	// Both CFileLoader::SetRelatedModelInfoCB and CFileLoader::FindRelatedModelInfoCB allocate
+	// char name[20] on the stack (21 bytes before the ARM32 stack canary at sp+28 / sp+36).
+	// Clamp strictly to 19 chars + NUL (20 bytes) so the stack canary is never overwritten.
+	if (copyLen > 19)
 	{
-		copyLen = 23;
+		static int s_clampLogs = 0;
+		if (s_clampLogs < 8)
+		{
+			++s_clampLogs;
+			FLog("GetNameAndDamage_hook: clamped oversized nodeName (%zu -> 19): %.32s", copyLen, nodeName);
+		}
+		copyLen = 19;
 	}
 	if (copyLen > 0)
 	{
