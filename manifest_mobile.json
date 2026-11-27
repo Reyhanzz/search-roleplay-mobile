@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
   "apk": {
-    "version": "1.0.6",
-    "version_code": 106,
+    "version": "1.0.7",
+    "version_code": 107,
     "mandatory": true,
     "download_url": "https://github.com/Reyhanzz/search-roleplay-mobile/releases/latest/download/SearchRoleplayMobile.apk",
     "sha256": "",
     "changelog": [
-      "Fixed SIGABRT (__stack_chk_fail) in CFileLoader::SetRelatedModelInfoCB when loading 0.3.DL custom .dff models with Frame NodeName >= 24 characters",
-      "Added RW NodeName (0x0253F2FE) DFF sanitizer in custommodels.cpp to prevent both RwFrame heap overflow in NodeNameStreamRead and stack canary overflow",
-      "Hooked GetNameAndDamage on ARM32 & ARM64 to strictly clamp output to 23 chars + NUL, plus CModelInfo CStore capacity guards"
+      "Fixed fatal ARM32 crash in DrawTextureUV (was jumping in Thumb mode into ARM .plt 0x1974EC+1 and passing RwTexture* instead of CSprite2d*) and uninitialized tex pointer / double-free in CTextDraw",
+      "Fixed TextDrawPool bounds checks, ScrShowTextDraw text length clamping, and JNI ShowDialog thread attachment + local ref cleanup",
+      "Hardened Java DialogManager & SAMP activity (dialogId < 0 hide handling, LayoutParams instanceof guards, trailing-tab StringIndexOutOfBounds fix, Back button no longer exits game while typing, and full Java uncaught exception logging)"
     ]
   },
   "remote_config": {

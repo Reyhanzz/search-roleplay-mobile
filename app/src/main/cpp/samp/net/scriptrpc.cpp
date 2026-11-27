@@ -727,18 +727,23 @@ void ScrShowTextDraw(RPCParameters* rpcParams)
         return;
     }
 
-	uint16_t wTextDrawID;
-	TEXT_DRAW_TRANSMIT textDrawTransmit;
-	uint16_t wTextLength;
+	uint16_t wTextDrawID = 0;
+	TEXT_DRAW_TRANSMIT textDrawTransmit{};
+	uint16_t wTextLength = 0;
 	RakNet::BitStream bsData(Data, (iBitLength / 8) + 1, false);
 	bsData.Read(wTextDrawID);
 	bsData.Read((char*)& textDrawTransmit, sizeof(TEXT_DRAW_TRANSMIT));
 	bsData.Read(wTextLength);
 
-	char szText[1024 + 1];
+	if (wTextDrawID >= MAX_TEXT_DRAWS) return;
 
-	bsData.Read(szText, wTextLength);
-    szText[wTextLength] = 0;
+	char szText[1024 + 1];
+	memset(szText, 0, sizeof(szText));
+	uint16_t readLen = (wTextLength > 1024) ? 1024 : wTextLength;
+	if (readLen > 0) {
+		bsData.Read(szText, readLen);
+	}
+	szText[readLen] = 0;
 
     pTextDrawPool->New(wTextDrawID, &textDrawTransmit, szText);
 }

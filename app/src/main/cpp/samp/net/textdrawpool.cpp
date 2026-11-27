@@ -30,6 +30,7 @@ CTextDrawPool::~CTextDrawPool()
 // 0.3.7
 void CTextDrawPool::New(uint16_t wTextDrawID, TEXT_DRAW_TRANSMIT* pTextDrawTransmit, const char* szText)
 {
+    if (wTextDrawID >= MAX_TEXT_DRAWS) return;
     if (m_pTextDraw[wTextDrawID]) {
         Delete(wTextDrawID);
     }
@@ -43,6 +44,7 @@ void CTextDrawPool::New(uint16_t wTextDrawID, TEXT_DRAW_TRANSMIT* pTextDrawTrans
 // 0.3.7
 void CTextDrawPool::Delete(uint16_t wTextDrawID)
 {
+    if (wTextDrawID >= MAX_TEXT_DRAWS) return;
     if (m_pTextDraw[wTextDrawID]) {
         delete m_pTextDraw[wTextDrawID];
         m_pTextDraw[wTextDrawID] = nullptr;
@@ -79,14 +81,14 @@ void CTextDrawPool::SetSelectState(bool bState, uint32_t dwColor)
         m_dwHoverColor = (((dwColor << 16) | dwColor & 0xFF00) << 8) | (((dwColor >> 16) | dwColor & 0xFF0000) >> 8);
         m_wClickedTextDrawID = 0xFFFF;
         pGame->DisplayHUD(false);
-        pGame->FindPlayerPed()->TogglePlayerControllable(false);
+        if (pGame->FindPlayerPed()) pGame->FindPlayerPed()->TogglePlayerControllable(false);
     }
     else {
         m_bSelectState = false;
         m_dwHoverColor = 0;
         m_wClickedTextDrawID = 0xFFFF;
         pGame->DisplayHUD(true);
-        pGame->FindPlayerPed()->TogglePlayerControllable(true);
+        if (pGame->FindPlayerPed()) pGame->FindPlayerPed()->TogglePlayerControllable(true);
 
         SendClick();
 

@@ -131,28 +131,65 @@ void CJavaWrapper::ClearTab()
 
 void CJavaWrapper::ShowDialog(int dialogStyle, int dialogID, char* title, char* text, char* button1, char* button2)
 {
-	JNIEnv* env;
-    javaVM->GetEnv((void**)&env, JNI_VERSION_1_6);
+	if (!javaVM || !activity || !s_ShowDialog) return;
 
-	if (!env)
+	JNIEnv* env = nullptr;
+	bool attached = false;
+	jint envStat = javaVM->GetEnv((void**)&env, JNI_VERSION_1_6);
+	if (envStat == JNI_EDETACHED)
 	{
-		FLog("No env");
+		if (javaVM->AttachCurrentThread(&env, nullptr) != 0 || !env)
+		{
+			FLog("ShowDialog: AttachCurrentThread failed");
+			return;
+		}
+		attached = true;
+	}
+	else if (envStat != JNI_OK || !env)
+	{
+		FLog("ShowDialog: No env");
 		return;
 	}
 
-	std::string sTitle(title);
-	std::string sText(text);
-	std::string sButton1(button1);
-	std::string sButton2(button2);
+	std::string sTitle(title ? title : "");
+	std::string sText(text ? text : "");
+	std::string sButton1(button1 ? button1 : "");
+	std::string sButton2(button2 ? button2 : "");
 
-	jbyteArray jstrTitle = as_byte_array((unsigned char*)sTitle.c_str(), sTitle.length());
-	jbyteArray jstrText = as_byte_array((unsigned char*)sText.c_str(), sText.length());
-	jbyteArray jstrButton1 = as_byte_array((unsigned char*)sButton1.c_str(), sButton1.length());
-	jbyteArray jstrButton2 = as_byte_array((unsigned char*)sButton2.c_str(), sButton2.length());
+	auto makeByteArray = [env](const std::string& s) -> jbyteArray {
+		jbyteArray arr = env->NewByteArray(static_cast<jsize>(s.length()));
+		if (arr && !s.empty())
+		{
+			env->SetByteArrayRegion(arr, 0, static_cast<jsize>(s.length()),
+				reinterpret_cast<const jbyte*>(s.data()));
+		}
+		return arr;
+	};
 
-	env->CallVoidMethod(activity, s_ShowDialog, dialogID, dialogStyle, jstrTitle, jstrText, jstrButton1, jstrButton2);
+	jbyteArray jstrTitle = makeByteArray(sTitle);
+	jbyteArray jstrText = makeByteArray(sText);
+	jbyteArray jstrButton1 = makeByteArray(sButton1);
+	jbyteArray jstrButton2 = makeByteArray(sButton2);
 
-	EXCEPTION_CHECK(env);
+	if (jstrTitle && jstrText && jstrButton1 && jstrButton2)
+	{
+		env->CallVoidMethod(activity, s_ShowDialog, dialogID, dialogStyle, jstrTitle, jstrText, jstrButton1, jstrButton2);
+		if (env->ExceptionCheck())
+		{
+			env->ExceptionDescribe();
+			env->ExceptionClear();
+		}
+	}
+
+	if (jstrTitle) env->DeleteLocalRef(jstrTitle);
+	if (jstrText) env->DeleteLocalRef(jstrText);
+	if (jstrButton1) env->DeleteLocalRef(jstrButton1);
+	if (jstrButton2) env->DeleteLocalRef(jstrButton2);
+
+	if (attached)
+	{
+		javaVM->DetachCurrentThread();
+	}
 }
 
 void CJavaWrapper::exitGame() {

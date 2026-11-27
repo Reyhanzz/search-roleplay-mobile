@@ -103,11 +103,23 @@ public class SAMP extends GTASA implements CustomKeyboard.InputListener, HeightP
     }
 
     public void showDialog(int dialogId, int dialogTypeId, byte[] bArr, byte[] bArr2, byte[] bArr3, byte[] bArr4) {
-        final String caption = new String(bArr, StandardCharsets.UTF_8);
-        final String content = new String(bArr2, StandardCharsets.UTF_8);
-        final String leftBtnText = new String(bArr3, StandardCharsets.UTF_8);
-        final String rightBtnText = new String(bArr4, StandardCharsets.UTF_8);
-        runOnUiThread(() -> { this.mDialog.show(dialogId, dialogTypeId, caption, content, leftBtnText, rightBtnText); });
+        final String caption = bArr != null ? new String(bArr, StandardCharsets.UTF_8) : "";
+        final String content = bArr2 != null ? new String(bArr2, StandardCharsets.UTF_8) : "";
+        final String leftBtnText = bArr3 != null ? new String(bArr3, StandardCharsets.UTF_8) : "";
+        final String rightBtnText = bArr4 != null ? new String(bArr4, StandardCharsets.UTF_8) : "";
+        runOnUiThread(() -> {
+            try {
+                if (this.mDialog == null || isFinishing() || isDestroyed()) return;
+                if (dialogId < 0) {
+                    this.mDialog.Hide();
+                } else {
+                    this.mDialog.show(dialogId, dialogTypeId, caption, content, leftBtnText, rightBtnText);
+                }
+            } catch (Throwable t) {
+                logJavaCrash("SAMP.showDialog", t);
+                Log.e(TAG, "showDialog error", t);
+            }
+        });
     }
 
     private native void onInputEnd(byte[] str);
@@ -320,6 +332,13 @@ public class SAMP extends GTASA implements CustomKeyboard.InputListener, HeightP
     @Override
     public void onCreate(Bundle savedInstanceState) {
         Log.i(TAG, "**** onCreate");
+        final Thread.UncaughtExceptionHandler prevHandler = Thread.getDefaultUncaughtExceptionHandler();
+        Thread.setDefaultUncaughtExceptionHandler((thread, throwable) -> {
+            logJavaCrash("Uncaught(" + thread.getName() + ")", throwable);
+            if (prevHandler != null) {
+                prevHandler.uncaughtException(thread, throwable);
+            }
+        });
         try {
             super.onCreate(savedInstanceState);
 
@@ -374,7 +393,14 @@ public class SAMP extends GTASA implements CustomKeyboard.InputListener, HeightP
 
     @Override
     public void onBackPressed() {
-        super.onBackPressed();
+        if (mDialog != null && mDialog.isShow) {
+            return;
+        }
+        if (mKeyboard != null && mKeyboard.IsShowing()) {
+            mKeyboard.HideInputLayout();
+            onEventBackPressed();
+            return;
+        }
         onEventBackPressed();
     }
 

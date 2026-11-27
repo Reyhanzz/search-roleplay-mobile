@@ -2298,24 +2298,40 @@ void DrawRaster(RwRaster* raster, CRect const& rect)
 	RwIm2DRenderPrimitive(rwPRIMTYPETRIFAN, (RwIm2DVertex*)(g_libGTASA + 0xA7C264), 4);
 }
 
+#include "sprite2d.h"
+
 void DrawTexture(uintptr_t texture, CRect* rect, uint32_t dwColor)
 {
-	if (texture)
+	if (texture && rect)
 	{
+		RwTexture* rwTex = reinterpret_cast<RwTexture*>(texture);
+		if (!rwTex->raster) return;
 		RwRenderStateSet(rwRENDERSTATETEXTUREFILTER, (void*)rwFILTERLINEAR);
-		// CSprite2d::Draw(CRect const&, CRGBA const&)
-		((void(*)(uintptr_t, CRect*, uint32_t*))(g_libGTASA + 0x5C9120 + 1))(texture, rect, &dwColor);
+		CSprite2d sprite{};
+		sprite.m_pTexture = rwTex;
+		CRGBA col;
+		memcpy(&col, &dwColor, sizeof(col));
+		sprite.Draw(*rect, col);
+		sprite.m_pTexture = nullptr;
 	}
 }
 
 void DrawTextureUV(uintptr_t texture, CRect* rect, uint32_t dwColor, float *uv)
 {
-	if (texture)
+	if (texture && rect && uv)
 	{
+		RwTexture* rwTex = reinterpret_cast<RwTexture*>(texture);
+		if (!rwTex->raster) return;
 		RwRenderStateSet(rwRENDERSTATETEXTUREFILTER, (void*)rwFILTERLINEAR);
-		// CSprite2d::Draw(CRect  const& posn, CRGBA  const& color, float u1, float v1, float u2, float v2, float u3, float v3, float u4, float v4);
-		((void(*)(uintptr_t, CRect*, uint32_t*, float, float, float, float, float, float, float, float))
-			(g_libGTASA + (VER_x32?0x1974EC + 1:0x6EDC5C)))(texture, rect, &dwColor, uv[0], uv[1], uv[2], uv[3], uv[4], uv[5], uv[6], uv[7]);
+		CSprite2d sprite{};
+		sprite.m_pTexture = rwTex;
+		CRGBA col;
+		memcpy(&col, &dwColor, sizeof(col));
+		sprite.SetVertices(*rect, col, col, col, col, uv[0], uv[1], uv[2], uv[3], uv[4], uv[5], uv[6], uv[7]);
+		sprite.SetRenderState();
+		RwIm2DRenderPrimitive(rwPRIMTYPETRIFAN, CSprite2d::maVertices, 4);
+		RwRenderStateSet(rwRENDERSTATETEXTURERASTER, nullptr);
+		sprite.m_pTexture = nullptr;
 	}
 }
 

@@ -249,20 +249,23 @@ void DialogBox(RPCParameters *rpcParams)
 		break;
 	}
 
-	if (pUI) 
+	if (pUI && pJavaWrapper) 
 	{
 		if (strcmp(szButton2, "") == 0)
 		{
 			Button2Show = 2;
-			//MyLog("lol %s", szButton2);
 		}
 		else
 		{
 			Button2Show = 1;
-			//MyLog("lol2 %s", szButton2);
 		}
-		//pUI->dialog()->show(wDialogID, style, Encoding::cp2utf(szTitle), Encoding::cp2utf(szMessage), Encoding::cp2utf(szButton1), Encoding::cp2utf(szButton2));
-		pJavaWrapper->ShowDialog(byteDialogStyle, wDialogID, (char*)Encoding::cp2utf(szTitle).c_str(), (char*) Encoding::cp2utf(szMessage).c_str(), (char*) Encoding::cp2utf(szButton1).c_str(), (char*) Encoding::cp2utf(szButton2).c_str());
+		std::string utfTitle = Encoding::cp2utf(szTitle);
+		std::string utfMsg = Encoding::cp2utf(szMessage);
+		std::string utfBtn1 = Encoding::cp2utf(szButton1);
+		std::string utfBtn2 = Encoding::cp2utf(szButton2);
+		pJavaWrapper->ShowDialog(byteDialogStyle, wDialogID,
+			(char*)utfTitle.c_str(), (char*)utfMsg.c_str(),
+			(char*)utfBtn1.c_str(), (char*)utfBtn2.c_str());
 	}
 
 	return;

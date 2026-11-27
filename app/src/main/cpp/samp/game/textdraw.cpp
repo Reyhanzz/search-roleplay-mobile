@@ -68,13 +68,16 @@ CTextDraw::CTextDraw(TEXT_DRAW_TRANSMIT* pTextDrawTransmit, const char* szText)
 // 0.3.7
 CTextDraw::~CTextDraw()
 {
-    if (m_TextDrawData.iTextureSlot != -1 && m_TextDrawData.iTextureSlot != 0x0 && TextDrawTexture[m_TextDrawData.iTextureSlot]) RwTextureDestroy((RwTexture*)TextDrawTexture[m_TextDrawData.iTextureSlot]);
-    DestroyTextDrawTexture(m_TextDrawData.iTextureSlot);
+    if (m_TextDrawData.iTextureSlot >= 0 && m_TextDrawData.iTextureSlot < 200)
+    {
+        DestroyTextDrawTexture(m_TextDrawData.iTextureSlot);
+    }
+    m_TextDrawData.iTextureSlot = -1;
 }
 
 uintptr_t LoadFromTxdSlot(const char* szSlot, const char* szTexture)
 {
-    RwTexture* tex;
+    RwTexture* tex = nullptr;
     if (strncmp(szSlot, "none", 5u))
     {
         /*uintptr_t v10 = ((int (*)(const char*))(g_libGTASA + 0x55BB85))(szSlot);
@@ -247,23 +250,34 @@ void CTextDraw::DrawTextured()
             0.0f, 1.0f,
             1.0f, 1.0f };
 
+    if (m_TextDrawData.iTextureSlot < 0 || m_TextDrawData.iTextureSlot >= 200) {
+        return;
+    }
+
+    uintptr_t texPtr = TextDrawTexture[m_TextDrawData.iTextureSlot];
+    if (texPtr == 0) {
+        return;
+    }
+
     if (m_bHovered) {
-        if(TextDrawTexture[m_TextDrawData.iTextureSlot] != 0)DrawTextureUV(TextDrawTexture[m_TextDrawData.iTextureSlot], &m_rectArea, m_dwHoverColor,
-                                                                           m_TextDrawData.dwStyle == 5 ? uv_reflected : uv_normal);
+        DrawTextureUV(texPtr, &m_rectArea, m_dwHoverColor,
+                      m_TextDrawData.dwStyle == 5 ? uv_reflected : uv_normal);
     }
     else {
-        if(TextDrawTexture[m_TextDrawData.iTextureSlot] != 0)DrawTextureUV(TextDrawTexture[m_TextDrawData.iTextureSlot], &m_rectArea, m_TextDrawData.dwLetterColor,
-                                                                           m_TextDrawData.dwStyle == 5 ? uv_reflected : uv_normal);
+        DrawTextureUV(texPtr, &m_rectArea, m_TextDrawData.dwLetterColor,
+                      m_TextDrawData.dwStyle == 5 ? uv_reflected : uv_normal);
     }
 }
 
 void CTextDraw::SetText(const char* szText)
 {
-    memset(m_szText, 0, 800);
-    strncpy(m_szText, szText, 800);
-    m_szText[800] = 0;
+    memset(m_szText, 0, sizeof(m_szText));
+    if (szText) {
+        strncpy(m_szText, szText, 800);
+        m_szText[800] = 0;
+    }
 
-    if (m_TextDrawData.dwStyle == 4 && m_TextDrawData.iTextureSlot != -1)
+    if (m_TextDrawData.dwStyle == 4 && m_TextDrawData.iTextureSlot >= 0 && m_TextDrawData.iTextureSlot < 200)
     {
         DestroyTextDrawTexture(m_TextDrawData.iTextureSlot);
         LoadTexture();
@@ -285,7 +299,7 @@ void CTextDraw::LoadTexture()
         strncpy(txdname, m_szText, (size_t)(szTexture - m_szText));
         strcpy(texturename, ++szTexture);
 
-        if (m_TextDrawData.iTextureSlot != -1)
+        if (m_TextDrawData.iTextureSlot >= 0 && m_TextDrawData.iTextureSlot < 200)
             TextDrawTexture[m_TextDrawData.iTextureSlot] = ::LoadFromTxdSlot(txdname, texturename);
     }
 }
@@ -341,7 +355,15 @@ void CTextDraw::SnapshotProcess()
 
     if (snapshot)
     {
-        m_TextDrawData.iTextureSlot = GetFreeTextDrawTextureSlot();
-        TextDrawTexture[m_TextDrawData.iTextureSlot] = snapshot;
+        int slot = GetFreeTextDrawTextureSlot();
+        if (slot >= 0 && slot < 200)
+        {
+            m_TextDrawData.iTextureSlot = slot;
+            TextDrawTexture[slot] = snapshot;
+        }
+        else
+        {
+            RwTextureDestroy(reinterpret_cast<RwTexture*>(snapshot));
+        }
     }
 }

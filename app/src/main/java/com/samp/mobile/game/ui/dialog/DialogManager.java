@@ -133,23 +133,43 @@ public class DialogManager {
         isShow = false;
         Util.HideLayout(this.mMainLayout, false);
         Util.scaleViewAndChildren(this.activity, this.mMainLayout);
+
+        this.mDialogInput.addTextChangedListener(new TextWatcher() {
+            public void afterTextChanged(Editable editable) {
+            }
+
+            public void beforeTextChanged(CharSequence charSequence, int i, int i2, int i3) {
+            }
+
+            public void onTextChanged(CharSequence charSequence, int i, int i2, int i3) {
+                DialogManager.this.mCurrentInputtext = charSequence != null ? charSequence.toString() : "";
+            }
+        });
     }
 
     public void show(int i, int i2, String str, String str2, String str3, String str4) {
+        if (i < 0) {
+            Hide();
+            return;
+        }
         isShow = true;
         this.mCurrentDialogId = i;
         this.mDialogStyle = i2;
-        this.mCaption = str;
-        this.mText = str2;
-        this.mButtonPositive = str3;
-        this.mButtonNegative = str4;
+        this.mCaption = str != null ? str : "";
+        this.mText = str2 != null ? str2 : "";
+        this.mButtonPositive = str3 != null ? str3 : "";
+        this.mButtonNegative = str4 != null ? str4 : "";
 
-        ConstraintLayout.LayoutParams layoutParams = (ConstraintLayout.LayoutParams) this.mDialogTextLayout.getLayoutParams();
-        layoutParams.height = -2;
-        this.mDialogTextLayout.setLayoutParams(layoutParams);
-        FrameLayout.LayoutParams layoutParams2 = (FrameLayout.LayoutParams) this.mMainLayout.getLayoutParams();
-        layoutParams2.gravity = 17;
-        this.mMainLayout.setLayoutParams(layoutParams2);
+        ViewGroup.LayoutParams textLp = this.mDialogTextLayout.getLayoutParams();
+        if (textLp != null) {
+            textLp.height = ViewGroup.LayoutParams.WRAP_CONTENT;
+            this.mDialogTextLayout.setLayoutParams(textLp);
+        }
+        ViewGroup.LayoutParams mainLp = this.mMainLayout.getLayoutParams();
+        if (mainLp instanceof FrameLayout.LayoutParams) {
+            ((FrameLayout.LayoutParams) mainLp).gravity = 17;
+            this.mMainLayout.setLayoutParams(mainLp);
+        }
 
         loadDialog();
         Util.ShowLayout(this.mMainLayout, true);
@@ -164,9 +184,12 @@ public class DialogManager {
     }
 
     public void Hide() {
-        if (this.activity.getCurrentFocus() != null) {
-            ((InputMethodManager) this.activity.getSystemService(Context.INPUT_METHOD_SERVICE)).hideSoftInputFromWindow(this.activity.getCurrentFocus().getWindowToken(), 0);
-            System.out.println("[Hide] closed input");
+        View focus = this.activity != null ? this.activity.getCurrentFocus() : null;
+        if (focus != null && focus.getWindowToken() != null) {
+            InputMethodManager imm = (InputMethodManager) this.activity.getSystemService(Context.INPUT_METHOD_SERVICE);
+            if (imm != null) {
+                imm.hideSoftInputFromWindow(focus.getWindowToken(), 0);
+            }
         }
 
         isShow = false;
@@ -206,7 +229,8 @@ public class DialogManager {
         }
 
         try {
-            byte[] Str2 = str.getBytes("windows-1251");
+            String safeStr = str != null ? str : "";
+            byte[] Str2 = safeStr.getBytes("windows-1251");
 
             Hide();
             sendDialogResponse(i, DialogManager.this.mCurrentDialogId, i2, Str2);
@@ -216,9 +240,12 @@ public class DialogManager {
     }
 
     public void loadDialog() {
-        if (this.activity.getCurrentFocus() != null) {
-            ((InputMethodManager) this.activity.getSystemService(Context.INPUT_METHOD_SERVICE)).hideSoftInputFromWindow(this.activity.getCurrentFocus().getWindowToken(), 0);
-            System.out.println("[loadDialog] closed input");
+        View focus = this.activity != null ? this.activity.getCurrentFocus() : null;
+        if (focus != null && focus.getWindowToken() != null) {
+            InputMethodManager imm = (InputMethodManager) this.activity.getSystemService(Context.INPUT_METHOD_SERVICE);
+            if (imm != null) {
+                imm.hideSoftInputFromWindow(focus.getWindowToken(), 0);
+            }
         }
 
         clearDialogData();
@@ -251,13 +278,9 @@ public class DialogManager {
         if (i != 2) {
             StringBuilder sb = new StringBuilder(this.mText);
             for (int i2 = 0; i2 < sb.length(); i2++) {
-                if (sb.charAt(i2) == 9 && i2 < sb.length() - 1) {
-                    while (true) {
-                        int i3 = i2 + 1;
-                        if (sb.charAt(i3) != 9) {
-                            break;
-                        }
-                        sb.deleteCharAt(i3);
+                if (sb.charAt(i2) == 9) {
+                    while (i2 + 1 < sb.length() && sb.charAt(i2 + 1) == 9) {
+                        sb.deleteCharAt(i2 + 1);
                     }
                 }
             }
@@ -307,29 +330,38 @@ public class DialogManager {
         this.mDialogListRecycler.setLayoutParams(layoutParams3);
         this.mDialogBody.post(new Runnable() {
             public void run() {
+                if (DialogManager.this.mListAdapter == null) return;
                 if (DialogManager.this.mDialogBody.getWidth() > DialogManager.this.mDialogList.getWidth()) {
                     if (DialogManager.this.mDialogBody.getWidth() > DialogManager.this.mDialogListLayout.getWidth()) {
-                        ConstraintLayout.LayoutParams layoutParams = (ConstraintLayout.LayoutParams) DialogManager.this.mDialogListLayout.getLayoutParams();
-                        layoutParams.width = 0;
-                        DialogManager.this.mDialogListLayout.setLayoutParams(layoutParams);
+                        ViewGroup.LayoutParams layoutParams = DialogManager.this.mDialogListLayout.getLayoutParams();
+                        if (layoutParams != null) {
+                            layoutParams.width = 0;
+                            DialogManager.this.mDialogListLayout.setLayoutParams(layoutParams);
+                        }
                     }
-                    ConstraintLayout.LayoutParams layoutParams2 = (ConstraintLayout.LayoutParams) DialogManager.this.mDialogList.getLayoutParams();
-                    layoutParams2.width = 0;
-                    DialogManager.this.mDialogList.setLayoutParams(layoutParams2);
-                    ConstraintLayout.LayoutParams layoutParams3 = (ConstraintLayout.LayoutParams) DialogManager.this.mDialogListRecycler.getLayoutParams();
-                    layoutParams3.width = 0;
-                    DialogManager.this.mDialogListRecycler.setLayoutParams(layoutParams3);
+                    ViewGroup.LayoutParams layoutParams2 = DialogManager.this.mDialogList.getLayoutParams();
+                    if (layoutParams2 != null) {
+                        layoutParams2.width = 0;
+                        DialogManager.this.mDialogList.setLayoutParams(layoutParams2);
+                    }
+                    ViewGroup.LayoutParams layoutParams3 = DialogManager.this.mDialogListRecycler.getLayoutParams();
+                    if (layoutParams3 != null) {
+                        layoutParams3.width = 0;
+                        DialogManager.this.mDialogListRecycler.setLayoutParams(layoutParams3);
+                    }
                     DialogManager.this.mListAdapter.setMatchParent(true);
                 } else {
                     DialogManager.this.mListAdapter.setMatchParent(false);
                 }
                 if (DialogManager.this.mDialogStyle == 5) {
                     DialogManager dialogManager = DialogManager.this;
-                    int[] unused = dialogManager.mTabSizes = dialogManager.mListAdapter.mergeTabSizes(DialogManager.this.mTabSizes);
+                    dialogManager.mTabSizes = dialogManager.mListAdapter.mergeTabSizes(DialogManager.this.mTabSizes);
                     for (int i = 0; i < 4; i++) {
                         ViewGroup.LayoutParams layoutParams4 = DialogManager.this.mDialogTabField[i].getLayoutParams();
-                        layoutParams4.width = DialogManager.this.mTabSizes[i];
-                        DialogManager.this.mDialogTabField[i].setLayoutParams(layoutParams4);
+                        if (layoutParams4 != null) {
+                            layoutParams4.width = DialogManager.this.mTabSizes[i];
+                            DialogManager.this.mDialogTabField[i].setLayoutParams(layoutParams4);
+                        }
                     }
                 }
             }
@@ -359,17 +391,6 @@ public class DialogManager {
                 }
             });
         }
-        this.mDialogInput.addTextChangedListener(new TextWatcher() {
-            public void afterTextChanged(Editable editable) {
-            }
-
-            public void beforeTextChanged(CharSequence charSequence, int i, int i2, int i3) {
-            }
-
-            public void onTextChanged(CharSequence charSequence, int i, int i2, int i3) {
-                String unused = DialogManager.this.mCurrentInputtext = charSequence.toString();
-            }
-        });
     }
 
     public void setDialogStyle(int i) {
