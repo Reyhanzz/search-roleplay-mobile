@@ -749,6 +749,13 @@ public class SearchRpLauncherActivity extends AppCompatActivity {
         }
     }
 
+    private String getResolvedGpuExt() {
+        if (gpuInfo == null || "Detecting...".equals(gpuInfo.renderer)) {
+            gpuInfo = SrpGpuHelper.detect();
+        }
+        return gpuInfo != null ? gpuInfo.ext : "etc";
+    }
+
     private void launchNativeGame(String username, String serverPassword) {
         if (!SrpGameDataManager.inspectCache(this).installed) {
             new AlertDialog.Builder(this)
@@ -759,8 +766,8 @@ public class SearchRpLauncherActivity extends AppCompatActivity {
             return;
         }
 
-        // Ensure GPU *.RENAME.* textures, lowercase SAMP/weapon.dat, and SAMP/fonts/Arial.ttf are repaired before launch
-        SrpGameDataManager.prepareAndRepairCache(this, gpuInfo != null ? gpuInfo.ext : "etc");
+        // Ensure GPU *.RENAME.* textures, SAMP/fonts/arial_bold.ttf, and case-sensitive files are repaired before launch
+        SrpGameDataManager.prepareAndRepairCache(this, getResolvedGpuExt());
         cfg.syncSettingsIni(this, username, serverPassword);
         try {
             Intent intent = new Intent(this, SAMP.class);
@@ -802,7 +809,7 @@ public class SearchRpLauncherActivity extends AppCompatActivity {
         tvDlStats.setText(t("importing_zip", 0));
         updatePlayAndDataUi();
 
-        final String gpuExt = gpuInfo != null ? gpuInfo.ext : SrpGpuHelper.detect().ext;
+        final String gpuExt = getResolvedGpuExt();
         bgExec.execute(() -> SrpGameDataManager.importLocalZipDataPack(
                 this,
                 zipUri,
@@ -870,7 +877,7 @@ public class SearchRpLauncherActivity extends AppCompatActivity {
         tvDlStats.setText(t("dl_connecting"));
         updatePlayAndDataUi();
 
-        final String gpuExt = gpuInfo != null ? gpuInfo.ext : SrpGpuHelper.detect().ext;
+        final String gpuExt = getResolvedGpuExt();
         bgExec.execute(() -> SrpGameDataManager.downloadAndExtractDataPack(
                 this,
                 url,

@@ -28,7 +28,7 @@
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
 
     <application
-        android:gwpAsanMode="always"
+        android:gwpAsanMode="never"
         android:requestLegacyExternalStorage="true"
         android:banner="@mipmap/ic_launcher"
         android:hardwareAccelerated="true"

@@ -1,4 +1,6 @@
 #include <GLES2/gl2.h>
+#include <dirent.h>
+#include <strings.h>
 #include "../main.h"
 #include "../vendor/armhook/patch.h"
 #include "game.h"
@@ -1331,80 +1333,133 @@ struct stFile
 
 char lastFile[123];
 
+static bool ResolveCaseInsensitivePath(const char* baseDir, const char* relPath, char* outPath, size_t outSize)
+{
+    if (!baseDir || !relPath || !outPath || outSize == 0) return false;
+    std::string cur(baseDir);
+    while (!cur.empty() && cur.back() == '/') cur.pop_back();
+
+    std::string rel(relPath);
+    for (char& c : rel) {
+        if (c == '\\') c = '/';
+    }
+
+    size_t pos = 0;
+    while (pos < rel.size()) {
+        while (pos < rel.size() && rel[pos] == '/') pos++;
+        if (pos >= rel.size()) break;
+        size_t next = rel.find('/', pos);
+        std::string seg = (next == std::string::npos) ? rel.substr(pos) : rel.substr(pos, next - pos);
+        pos = (next == std::string::npos) ? rel.size() : next + 1;
+
+        std::string exact = cur + "/" + seg;
+        if (access(exact.c_str(), F_OK) == 0) {
+            cur = exact;
+            continue;
+        }
+
+        DIR* dir = opendir(cur.c_str());
+        if (!dir) return false;
+        bool matched = false;
+        struct dirent* ent;
+        while ((ent = readdir(dir)) != nullptr) {
+            if (strcasecmp(ent->d_name, seg.c_str()) == 0) {
+                cur = cur + "/" + ent->d_name;
+                matched = true;
+                break;
+            }
+        }
+        closedir(dir);
+        if (!matched) return false;
+    }
+
+    if (cur.size() + 1 > outSize) return false;
+    memcpy(outPath, cur.c_str(), cur.size() + 1);
+    return true;
+}
+
 stFile* NvFOpen(const char* r0, const char* r1, int r2, int r3)
 {
-    strcpy(lastFile, r1);
+    strncpy(lastFile, r1, sizeof(lastFile) - 1);
+    lastFile[sizeof(lastFile) - 1] = '\0';
 
-    static char path[255]{};
+    static char path[512]{};
     memset(path, 0, sizeof(path));
 
-    sprintf(path, "%s%s", g_pszStorage, r1);
+    const char* relOverride = nullptr;
+    size_t r1Len = strlen(r1);
 
     // ----------------------------
-    if(!strncmp(r1+12, "mainV1.scm", 10))
+    if (r1Len >= 22 && !strncmp(r1 + 12, "mainV1.scm", 10))
     {
-        sprintf(path, "%sSAMP/main.scm", g_pszStorage);
-        FLog("Loading %s", path);
+        relOverride = "SAMP/main.scm";
+        FLog("Loading %s%s", g_pszStorage, relOverride);
     }
     // ----------------------------
-    if(!strncmp(r1+12, "SCRIPTV1.IMG", 12))
+    if (r1Len >= 24 && !strncmp(r1 + 12, "SCRIPTV1.IMG", 12))
     {
-        sprintf(path, "%sSAMP/script.img", g_pszStorage);
+        relOverride = "SAMP/script.img";
         FLog("Loading script.img..");
     }
     // ----------------------------
-    if(!strncmp(r1, "DATA/PEDS.IDE", 13))
+    if (!strncmp(r1, "DATA/PEDS.IDE", 13))
     {
-        sprintf(path, "%sSAMP/peds.ide", g_pszStorage);
+        relOverride = "SAMP/peds.ide";
         FLog("Loading peds.ide..");
     }
     // ----------------------------
-    if(!strncmp(r1, "DATA/VEHICLES.IDE", 17))
+    if (!strncmp(r1, "DATA/VEHICLES.IDE", 17))
     {
-        sprintf(path, "%sSAMP/vehicles.ide", g_pszStorage);
+        relOverride = "SAMP/vehicles.ide";
         FLog("Loading vehicles.ide..");
     }
 
     if (!strncmp(r1, "DATA/GTA.DAT", 12))
     {
-        sprintf(path, "%sSAMP/gta.dat", g_pszStorage);
+        relOverride = "SAMP/gta.dat";
         FLog("Loading gta.dat..");
     }
 
     if (!strncmp(r1, "DATA/HANDLING.CFG", 17))
     {
-        sprintf(path, "%sSAMP/handling.cfg", g_pszStorage);
+        relOverride = "SAMP/handling.cfg";
         FLog("Loading handling.cfg..");
     }
 
     if (!strncmp(r1, "DATA/WEAPON.DAT", 15))
     {
-        sprintf(path, "%sSAMP/weapon.dat", g_pszStorage);
+        relOverride = "SAMP/weapon.dat";
         FLog("Loading weapon.dat..");
     }
 
-    if (!strncmp(r1, "DATA/FONTS.DAT", 15))
+    if (!strncmp(r1, "DATA/FONTS.DAT", 14))
     {
-        sprintf(path, "%sdata/fonts.dat", g_pszStorage);
+        relOverride = "data/fonts.dat";
         FLog("Loading fonts.dat..");
     }
 
-    if (!strncmp(r1, "DATA/PEDSTATS.DAT", 15))
+    if (!strncmp(r1, "DATA/PEDSTATS.DAT", 17))
     {
-        sprintf(path, "%sdata/pedstats.dat", g_pszStorage);
+        relOverride = "data/pedstats.dat";
         FLog("Loading pedstats.dat..");
     }
 
-    if (!strncmp(r1, "DATA/TIMECYC.DAT", 15))
+    if (!strncmp(r1, "DATA/TIMECYC.DAT", 16))
     {
-        sprintf(path, "%sdata/timecyc.dat", g_pszStorage);
+        relOverride = "data/timecyc.dat";
         FLog("Loading timecyc.dat..");
     }
 
-    if (!strncmp(r1, "DATA/POPCYCLE.DAT", 15))
+    if (!strncmp(r1, "DATA/POPCYCLE.DAT", 17))
     {
-        sprintf(path, "%sdata/popcycle.dat", g_pszStorage);
+        relOverride = "data/popcycle.dat";
         FLog("Loading popcycle.dat..");
+    }
+
+    const char* relTarget = relOverride ? relOverride : r1;
+    snprintf(path, sizeof(path), "%s%s", g_pszStorage, relTarget);
+    for (char* p = path; *p; ++p) {
+        if (*p == '\\') *p = '/';
     }
 
 #if VER_x32
@@ -1414,9 +1469,17 @@ stFile* NvFOpen(const char* r0, const char* r1, int r2, int r3)
 #endif
     st->isFileExist = false;
 
-    FILE *f  = fopen(path, "rb");
+    FILE *f = fopen(path, "rb");
+    if (!f)
+    {
+        char resolved[512]{};
+        if (ResolveCaseInsensitivePath(g_pszStorage, relTarget, resolved, sizeof(resolved)))
+        {
+            f = fopen(resolved, "rb");
+        }
+    }
 
-    if(f)
+    if (f)
     {
         st->isFileExist = true;
         st->f = f;
@@ -1805,7 +1868,9 @@ void InstallSpecialHooks()
 {
     InjectHooks();
 
-    InstallUrezHooks();
+    // Disabled InstallUrezHooks(): it overwrote "texdb/%s/%s.pvr" -> ".dxt" inside libGTASA.so,
+    // which broke DF_PVR databases (player/menu) and PowerVR GPU devices (e.g. itel A60s).
+    // InstallUrezHooks();
 
     CHook::Redirect("_ZN5CGame20InitialiseRenderWareEv", &CGame::InitialiseRenderWare);
     CHook::InstallPLT(g_libGTASA + (VER_x32 ? 0x6785FC : 0x84EC20), &StartGameScreen__OnNewGameCheck_hook, &StartGameScreen__OnNewGameCheck);

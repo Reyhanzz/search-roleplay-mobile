@@ -202,22 +202,45 @@ public final class SrpGameDataManager {
 
     /**
      * Auto-repairs installed GTA SA 2.10 cache for this device:
-     * 1) Renames any texdb/*.RENAME.* files to match detected GPU (.dxt / .etc / .pvr)
-     * 2) Ensures Linux case-sensitive SAMP/weapon.dat & SAMP/timecyc.dat exist
-     * 3) Ensures SAMP/fonts/Arial.ttf exists (copies from fonts/arial.ttf or bundled APK font)
+     * 1) Renames any texdb/*.RENAME.* (and mismatched single-variant GPU files) to match detected GPU (.dxt / .etc / .pvr)
+     * 2) Ensures Linux case-sensitive SAMP/weapon.dat, SAMP/timecyc.dat & SAMP/samp.ide exist
+     * 3) Ensures SAMP/fonts/arial_bold.ttf, Arial.ttf, and arial.ttf exist (prevents native ImGui null-widget SIGSEGV)
      */
     public static int prepareAndRepairCache(Context ctx, String gpuExt) {
         String safeGpu = (gpuExt == null || gpuExt.trim().isEmpty()) ? "etc" : gpuExt.trim().toLowerCase(Locale.US);
         File root = getGameFilesDir(ctx);
         int fixed = 0;
 
-        // 1. Rename any leftover *.RENAME.* files in texdb/
+        // 1. Rename any leftover *.RENAME.* files in texdb/ and align single-variant databases to detected GPU
         File texdb = new File(root, "texdb");
         if (texdb.isDirectory()) {
             fixed += renameGpuPlaceholdersRecursive(texdb, safeGpu);
+            String[] singleVariantDbs = new String[]{"gta3", "gta_int", "mobile", "txd", "cutscene"};
+            String[] altExts = new String[]{"dxt", "etc", "pvr"};
+            String[] suffixes = new String[]{"dat", "toc", "tmb"};
+            for (String db : singleVariantDbs) {
+                File dbDir = new File(texdb, db);
+                if (!dbDir.isDirectory()) continue;
+                File expectedDat = new File(dbDir, db + "." + safeGpu + ".dat");
+                if (expectedDat.isFile()) continue;
+                for (String alt : altExts) {
+                    if (alt.equals(safeGpu)) continue;
+                    File altDat = new File(dbDir, db + "." + alt + ".dat");
+                    if (altDat.isFile()) {
+                        for (String suf : suffixes) {
+                            File srcF = new File(dbDir, db + "." + alt + "." + suf);
+                            File dstF = new File(dbDir, db + "." + safeGpu + "." + suf);
+                            if (srcF.isFile() && !dstF.exists() && srcF.renameTo(dstF)) {
+                                fixed++;
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
         }
 
-        // 2. Ensure lowercase SAMP/weapon.dat and SAMP/timecyc.dat exist on case-sensitive Android FS
+        // 2. Ensure lowercase SAMP/weapon.dat, SAMP/timecyc.dat, and SAMP/samp.ide exist on case-sensitive Android FS
         File sampDir = new File(root, "SAMP");
         if (!sampDir.exists()) sampDir.mkdirs();
 
@@ -235,31 +258,57 @@ public final class SrpGameDataManager {
             if (tcUpper.isFile() && copyFile(tcUpper, tcLower)) fixed++;
         }
 
-        // 3. Ensure SAMP/fonts/Arial.ttf exists (prevents crash on font init)
+        File ideLower = new File(sampDir, "samp.ide");
+        if (!ideLower.isFile()) {
+            File ideUpper = new File(sampDir, "SAMP.ide");
+            if (ideUpper.isFile() && copyFile(ideUpper, ideLower)) fixed++;
+        }
+
+        // 3. Ensure SAMP/fonts/arial_bold.ttf, Arial.ttf, and arial.ttf exist (cpp/samp/main.h loads arial_bold.ttf!)
         File fontDir = new File(sampDir, "fonts");
         if (!fontDir.exists()) fontDir.mkdirs();
+        File rootFonts = new File(root, "fonts");
+
+        File targetBold = new File(fontDir, "arial_bold.ttf");
+        if (!targetBold.isFile()) {
+            File srcBold = new File(rootFonts, "arial_bold.ttf");
+            File srcArial = new File(rootFonts, "arial.ttf");
+            File srcTargetArial = new File(fontDir, "Arial.ttf");
+            if (srcBold.isFile() && copyFile(srcBold, targetBold)) fixed++;
+            else if (srcArial.isFile() && copyFile(srcArial, targetBold)) fixed++;
+            else if (srcTargetArial.isFile() && copyFile(srcTargetArial, targetBold)) fixed++;
+            else if (copyRawResourceToFile(ctx, R.font.barlow_semibold, targetBold)) fixed++;
+        }
+
         File targetArial = new File(fontDir, "Arial.ttf");
         if (!targetArial.isFile()) {
-            File rootArial = new File(new File(root, "fonts"), "arial.ttf");
-            File rootArialCap = new File(new File(root, "fonts"), "Arial.ttf");
-            if (rootArial.isFile() && copyFile(rootArial, targetArial)) {
-                fixed++;
-            } else if (rootArialCap.isFile() && copyFile(rootArialCap, targetArial)) {
-                fixed++;
-            } else {
-                // Fallback to bundled Barlow Medium font inside APK resources
-                try (InputStream in = ctx.getResources().openRawResource(R.font.barlow_medium);
-                     BufferedOutputStream out = new BufferedOutputStream(new FileOutputStream(targetArial))) {
-                    byte[] buf = new byte[16384];
-                    int n;
-                    while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
-                    out.flush();
-                    fixed++;
-                } catch (Exception ignored) {
-                }
-            }
+            File rootArial = new File(rootFonts, "arial.ttf");
+            File rootArialCap = new File(rootFonts, "Arial.ttf");
+            if (rootArial.isFile() && copyFile(rootArial, targetArial)) fixed++;
+            else if (rootArialCap.isFile() && copyFile(rootArialCap, targetArial)) fixed++;
+            else if (targetBold.isFile() && copyFile(targetBold, targetArial)) fixed++;
+            else if (copyRawResourceToFile(ctx, R.font.barlow_medium, targetArial)) fixed++;
         }
+
+        File targetArialLower = new File(fontDir, "arial.ttf");
+        if (!targetArialLower.isFile() && targetArial.isFile()) {
+            if (copyFile(targetArial, targetArialLower)) fixed++;
+        }
+
         return fixed;
+    }
+
+    private static boolean copyRawResourceToFile(Context ctx, int resId, File dst) {
+        try (InputStream in = ctx.getResources().openRawResource(resId);
+             BufferedOutputStream out = new BufferedOutputStream(new FileOutputStream(dst))) {
+            byte[] buf = new byte[16384];
+            int n;
+            while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+            out.flush();
+            return true;
+        } catch (Exception ignored) {
+            return false;
+        }
     }
 
     private static int renameGpuPlaceholdersRecursive(File dir, String gpuExt) {
@@ -489,11 +538,26 @@ public final class SrpGameDataManager {
 
     public static String readTailLog(Context ctx, int maxLines) {
         File root = getGameFilesDir(ctx);
+        StringBuilder combined = new StringBuilder();
+
+        File javaLog = new File(root, "samp_java_log.txt");
+        if (javaLog.isFile() && javaLog.length() > 0) {
+            combined.append("=== LAUNCHER / JAVA LOG ===\n");
+            combined.append(readFileTail(javaLog, Math.min(40, maxLines))).append("\n\n");
+        }
+
         File logFile = new File(root, "samp_log.txt");
         if (!logFile.isFile()) {
             logFile = new File(new File(root, "SAMP"), "samp_log.txt");
         }
-        if (!logFile.isFile()) return "";
+        if (logFile.isFile() && logFile.length() > 0) {
+            combined.append("=== NATIVE SAMP LOG ===\n");
+            combined.append(readFileTail(logFile, maxLines));
+        }
+        return combined.toString().trim();
+    }
+
+    private static String readFileTail(File logFile, int maxLines) {
         java.util.ArrayDeque<String> deque = new java.util.ArrayDeque<>(maxLines + 2);
         try (BufferedReader br = new BufferedReader(
                 new InputStreamReader(new FileInputStream(logFile), StandardCharsets.UTF_8))) {

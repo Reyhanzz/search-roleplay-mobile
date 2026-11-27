@@ -163,35 +163,49 @@ public class SAMP extends GTASA implements CustomKeyboard.InputListener, HeightP
         });
     }
 
+    private void logJavaCrash(String stage, Throwable t) {
+        try {
+            java.io.File dir = getExternalFilesDir(null);
+            if (dir == null) dir = getFilesDir();
+            java.io.File out = new java.io.File(dir, "samp_java_log.txt");
+            try (java.io.PrintWriter pw = new java.io.PrintWriter(new java.io.FileWriter(out, false))) {
+                pw.println("Stage: " + stage);
+                pw.println("ABI: " + java.util.Arrays.toString(android.os.Build.SUPPORTED_ABIS));
+                t.printStackTrace(pw);
+                pw.flush();
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         Log.i(TAG, "**** onCreate");
-        super.onCreate(savedInstanceState);
-
-        //if(!SignatureChecker.isSignatureValid(this, getPackageName()))
-        //{
-            //Toast.makeText(this, "Use original launcher! No remake", Toast.LENGTH_LONG).show();
-            //return;
-        //}
-
-        //mHeightProvider = new HeightProvider(this);
-
-        mKeyboard = new CustomKeyboard(this);
-
-        mDialog = new DialogManager(this);
-
-        mAttachEdit = new AttachEdit(this);
-
-        mLoadingScreen = new LoadingScreen(this);
-
-        instance = this;
-
         try {
-            initializeSAMP();
-        } catch (UnsatisfiedLinkError e5) {
-            Log.e(TAG, e5.getMessage());
-        }
+            super.onCreate(savedInstanceState);
 
+            mKeyboard = new CustomKeyboard(this);
+
+            mDialog = new DialogManager(this);
+
+            mAttachEdit = new AttachEdit(this);
+
+            mLoadingScreen = new LoadingScreen(this);
+
+            instance = this;
+
+            try {
+                initializeSAMP();
+            } catch (UnsatisfiedLinkError e5) {
+                logJavaCrash("initializeSAMP", e5);
+                Log.e(TAG, e5.getMessage() != null ? e5.getMessage() : e5.toString());
+            }
+        } catch (Throwable t) {
+            logJavaCrash("SAMP.onCreate", t);
+            Log.e(TAG, "SAMP.onCreate failed", t);
+            Toast.makeText(this, "Game init error: " + t.getClass().getSimpleName() + ": " + t.getMessage(), Toast.LENGTH_LONG).show();
+            finish();
+        }
     }
 
     private native void initializeSAMP();

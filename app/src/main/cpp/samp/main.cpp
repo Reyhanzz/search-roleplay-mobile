@@ -215,9 +215,9 @@ void DoInitStuff()
 		pAudioStream = new CAudioStream();
 		pAudioStream->Initialize();
 
-		pUI->splashscreen()->setVisible(false);
-		pUI->chat()->setVisible(true);
-		pUI->buttonpanel()->setVisible(true);
+		if (pUI && pUI->splashscreen()) pUI->splashscreen()->setVisible(false);
+		if (pUI && pUI->chat()) pUI->chat()->setVisible(true);
+		if (pUI && pUI->buttonpanel()) pUI->buttonpanel()->setVisible(true);
 
 		pGame->Initialize();
 		pGame->SetMaxStats();
@@ -254,7 +254,12 @@ void DoInitStuff()
 	{
 		//ReadSettingFile();
 
-		pNetGame = new CNetGame("94.23.168.153", 2305, pSettings->Get().szNickName, pSettings->Get().szPassword);
+		const char* szHost = (pSettings && pSettings->Get().szHost[0] != '\0')
+			? pSettings->Get().szHost : "151.246.170.113";
+		int iPort = (pSettings && pSettings->Get().iPort > 0)
+			? pSettings->Get().iPort : 7777;
+		FLog("Connecting to %s:%d as %s", szHost, iPort, pSettings->Get().szNickName);
+		pNetGame = new CNetGame(szHost, iPort, pSettings->Get().szNickName, pSettings->Get().szPassword);
 		bNetworkInited = true;
 
         FLog("DoInitStuff end");
@@ -327,6 +332,24 @@ void InitGui()
 	Plugin::OnSampLoad();
 
 	std::string font_path = string_format("%sSAMP/fonts/%s", g_pszStorage, FONT_NAME);
+	const char* font_candidates[] = {
+		"SAMP/fonts/arial_bold.ttf",
+		"fonts/arial_bold.ttf",
+		"SAMP/fonts/Arial.ttf",
+		"SAMP/fonts/arial.ttf",
+		"fonts/arial.ttf"
+	};
+	for (const char* rel : font_candidates) {
+		std::string cand = string_format("%s%s", g_pszStorage, rel);
+		FILE* fp = fopen(cand.c_str(), "rb");
+		if (fp) {
+			fclose(fp);
+			font_path = cand;
+			break;
+		}
+	}
+	FLog("InitGui: using font %s", font_path.c_str());
+
 	pUI = new UI(ImVec2(RsGlobal->maximumWidth, RsGlobal->maximumHeight), font_path.c_str());
 	pUI->initialize();
 	pUI->performLayout();

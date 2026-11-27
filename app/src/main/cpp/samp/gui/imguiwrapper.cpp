@@ -62,6 +62,12 @@ bool ImGuiWrapper::initialize()
 
 	if (font == nullptr)
 	{
+		FLog("ImGuiWrapper: failed to load TTF %s, falling back to ImGui default font", m_fontPath.c_str());
+		font = io.Fonts->AddFontDefault();
+	}
+
+	if (font == nullptr)
+	{
 		Log::addParameter("font", font);
 		return false;
 	}
