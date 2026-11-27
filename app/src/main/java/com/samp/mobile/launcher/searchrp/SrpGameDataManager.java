@@ -295,7 +295,79 @@ public final class SrpGameDataManager {
             if (copyFile(targetArial, targetArialLower)) fixed++;
         }
 
+        // 4. Extract missing core APK assets (Text/american.gxt, Textures/fonts, Fonts, xml, audio/android, ShopUVs.dat)
+        // Native NvFOpen hook reads from external files dir rather than APK assets, so CText::Load requires Text/american.gxt on disk!
+        fixed += extractMissingApkAssets(ctx, root);
+
+        // 5. Ensure data/script/script.img exists if SAMP/script.img is present
+        File dataScriptImg = new File(new File(new File(root, "data"), "script"), "script.img");
+        File sampScriptImg = new File(sampDir, "script.img");
+        if (!dataScriptImg.isFile() && sampScriptImg.isFile()) {
+            File p = dataScriptImg.getParentFile();
+            if (p != null && !p.exists()) p.mkdirs();
+            if (copyFile(sampScriptImg, dataScriptImg)) fixed++;
+        }
+
         return fixed;
+    }
+
+    private static int extractMissingApkAssets(Context ctx, File root) {
+        int copied = 0;
+        android.content.res.AssetManager am = ctx.getAssets();
+        String[] assetDirs = new String[]{"Text", "Textures", "Fonts", "xml", "audio"};
+        for (String dir : assetDirs) {
+            copied += copyAssetTreeIfMissing(am, dir, new File(root, dir));
+        }
+        String[] singleFiles = new String[]{
+                "data/ShopUVs.dat",
+                "data/TouchDefaultPhoneWidescreen2.cfg",
+                "assetfile.txt",
+                "scache.txt",
+                "scache_small.txt",
+                "scache_small_low.txt"
+        };
+        for (String rel : singleFiles) {
+            File dst = new File(root, rel);
+            if (!dst.isFile() || dst.length() == 0L) {
+                if (copySingleAsset(am, rel, dst)) copied++;
+            }
+        }
+        return copied;
+    }
+
+    private static int copyAssetTreeIfMissing(android.content.res.AssetManager am, String assetPath, File dstDir) {
+        int copied = 0;
+        try {
+            String[] children = am.list(assetPath);
+            if (children == null || children.length == 0) {
+                if (!dstDir.isFile() || dstDir.length() == 0L) {
+                    if (copySingleAsset(am, assetPath, dstDir)) copied++;
+                }
+                return copied;
+            }
+            if (!dstDir.exists()) dstDir.mkdirs();
+            for (String child : children) {
+                String childAsset = assetPath.isEmpty() ? child : (assetPath + "/" + child);
+                copied += copyAssetTreeIfMissing(am, childAsset, new File(dstDir, child));
+            }
+        } catch (Exception ignored) {
+        }
+        return copied;
+    }
+
+    private static boolean copySingleAsset(android.content.res.AssetManager am, String assetPath, File dst) {
+        File parent = dst.getParentFile();
+        if (parent != null && !parent.exists()) parent.mkdirs();
+        try (InputStream in = am.open(assetPath);
+             BufferedOutputStream out = new BufferedOutputStream(new FileOutputStream(dst), 32768)) {
+            byte[] buf = new byte[32768];
+            int n;
+            while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+            out.flush();
+            return true;
+        } catch (Exception ignored) {
+            return false;
+        }
     }
 
     private static boolean copyRawResourceToFile(Context ctx, int resId, File dst) {

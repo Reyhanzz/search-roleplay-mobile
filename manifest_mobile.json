@@ -1,16 +1,15 @@
 {
   "schema_version": 1,
   "apk": {
-    "version": "1.0.2",
-    "version_code": 102,
+    "version": "1.0.3",
+    "version_code": 103,
     "mandatory": true,
     "download_url": "https://github.com/Reyhanzz/search-roleplay-mobile/releases/latest/download/SearchRoleplayMobile.apk",
     "sha256": "",
     "changelog": [
-      "Fixed instant crash-to-launcher on Play caused by missing SAMP/fonts/arial_bold.ttf in ImGui init",
-      "Fixed PowerVR (itel A60s) and DF_PVR player/menu texture crash by disabling upstream .pvr->.dxt patch",
-      "Fixed native client connecting to hardcoded upstream IP instead of Search Roleplay (151.246.170.113:7777) from settings.ini",
-      "Added case-insensitive file resolver in NvFOpen and automatic cache repair without re-downloading data"
+      "Fixed SIGSEGV in CText::Load / OS_FileRead caused by missing Text/american.gxt on disk",
+      "Auto-extracts missing core APK assets (Text/*.gxt, Textures/fonts, Fonts, xml, audio/android, ShopUVs.dat) seamlessly on launch without re-downloading the 1.67 GB data pack",
+      "Added null-handle guard in native OS_FileRead_hook"
     ]
   },
   "remote_config": {
