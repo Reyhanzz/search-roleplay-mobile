@@ -129,6 +129,11 @@ public final class SrpI18n {
         put("cfg_data_url_ph", "https://... (Direct / Google Drive / Dropbox)", "https://... (Direct / Google Drive / Dropbox)");
         put("btn_save_url", "Save URL", "Simpan Link");
         put("btn_dl_now", "Download Data", "Unduh Data");
+        put("btn_import_zip", "Import .zip from Phone", "Import .zip dari HP");
+        put("importing_zip", "Importing local .zip (%d files)...", "Mengekstrak .zip lokal (%d file)...");
+        put("import_done", "Local .zip installed & GPU textures matched!", "File .zip terpasang & tekstur GPU disesuaikan!");
+        put("import_failed", "Import failed: %s", "Gagal import: %s");
+        put("gpu_detected_fmt", "Detected GPU: %s  (%s)", "GPU Terdeteksi: %s  (%s)");
         put("btn_view_log", "View samp_log.txt", "Lihat samp_log.txt");
         put("btn_check_apk", "Check APK Update", "Cek Update APK");
         put("url_saved", "Data pack URL saved!", "Link data game tersimpan!");

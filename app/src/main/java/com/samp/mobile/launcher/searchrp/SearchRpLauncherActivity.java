@@ -49,10 +49,12 @@ public class SearchRpLauncherActivity extends AppCompatActivity {
 
     private static final long AUTO_REFRESH_MS = 30_000L;
     private static final int REQ_RECORD_AUDIO = 401;
+    private static final int REQ_PICK_ZIP = 402;
 
     private SrpConfig cfg;
     private String lang = "en";
     private int activeTab = 0; // 0=home, 1=ucp, 2=settings
+    private SrpGpuHelper.GpuInfo gpuInfo = new SrpGpuHelper.GpuInfo("etc", "Detecting...", "ETC (.etc)");
 
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final ExecutorService bgExec = Executors.newCachedThreadPool();
@@ -101,7 +103,7 @@ public class SearchRpLauncherActivity extends AppCompatActivity {
     private TextView fps30, fps60, fps90, fps120;
     private SwitchCompat swFpsCounter, swAndroidKb, swFirstPerson, swCutout, swHpText, swPcMoney, swRadarRect, swAutoAim, swVoice;
     private TextView btnCfgReset, btnCfgSave;
-    private TextView tvCfgSecData, tvCfgStoragePath, lblCfgDataUrl, btnSaveUrl, btnCfgDlData, btnViewLog, btnCheckApk, tvVersionFooter;
+    private TextView tvCfgSecData, tvCfgStoragePath, tvCfgGpuInfo, lblCfgDataUrl, btnSaveUrl, btnCfgDlData, btnImportZip, btnViewLog, btnCheckApk, tvVersionFooter;
     private EditText editDataUrl;
     private int selectedFps = 60;
     private int selectedChatLines = 9;
@@ -133,10 +135,23 @@ public class SearchRpLauncherActivity extends AppCompatActivity {
         switchTab(0);
         refreshCacheStatus();
 
-        // Start live server query + remote manifest sync
+        // Start GPU detection + live server query + remote manifest sync
+        detectGpuAsync();
         refreshServerStatus(true);
         fetchRemoteManifestAsync(false);
         mainHandler.postDelayed(autoRefreshRunnable, AUTO_REFRESH_MS);
+    }
+
+    private void detectGpuAsync() {
+        bgExec.execute(() -> {
+            SrpGpuHelper.GpuInfo detected = SrpGpuHelper.detect();
+            mainHandler.post(() -> {
+                gpuInfo = detected;
+                if (tvCfgGpuInfo != null) {
+                    tvCfgGpuInfo.setText(t("gpu_detected_fmt", detected.label, detected.renderer));
+                }
+            });
+        });
     }
 
     @Override
@@ -254,10 +269,12 @@ public class SearchRpLauncherActivity extends AppCompatActivity {
         btnCfgSave = findViewById(R.id.btn_cfg_save);
         tvCfgSecData = findViewById(R.id.tv_cfg_sec_data);
         tvCfgStoragePath = findViewById(R.id.tv_cfg_storage_path);
+        tvCfgGpuInfo = findViewById(R.id.tv_cfg_gpu_info);
         lblCfgDataUrl = findViewById(R.id.lbl_cfg_data_url);
         editDataUrl = findViewById(R.id.edit_data_url);
         btnSaveUrl = findViewById(R.id.btn_save_url);
         btnCfgDlData = findViewById(R.id.btn_cfg_dl_data);
+        btnImportZip = findViewById(R.id.btn_import_zip);
         btnViewLog = findViewById(R.id.btn_view_log);
         btnCheckApk = findViewById(R.id.btn_check_apk);
         tvVersionFooter = findViewById(R.id.tv_version_footer);
@@ -365,6 +382,7 @@ public class SearchRpLauncherActivity extends AppCompatActivity {
             switchTab(0);
             startDataDownload();
         });
+        btnImportZip.setOnClickListener(v -> openLocalZipPicker());
         btnViewLog.setOnClickListener(v -> showSampLogDialog());
         btnCheckApk.setOnClickListener(v -> {
             toast(t("upd_checking"));
@@ -451,6 +469,8 @@ public class SearchRpLauncherActivity extends AppCompatActivity {
         editDataUrl.setHint(t("cfg_data_url_ph"));
         btnSaveUrl.setText(t("btn_save_url"));
         btnCfgDlData.setText(t("btn_dl_now"));
+        btnImportZip.setText(t("btn_import_zip"));
+        tvCfgGpuInfo.setText(t("gpu_detected_fmt", gpuInfo.label, gpuInfo.renderer));
         btnViewLog.setText(t("btn_view_log"));
         btnCheckApk.setText(t("btn_check_apk"));
     }
@@ -739,6 +759,8 @@ public class SearchRpLauncherActivity extends AppCompatActivity {
             return;
         }
 
+        // Ensure GPU *.RENAME.* textures, lowercase SAMP/weapon.dat, and SAMP/fonts/Arial.ttf are repaired before launch
+        SrpGameDataManager.prepareAndRepairCache(this, gpuInfo != null ? gpuInfo.ext : "etc");
         cfg.syncSettingsIni(this, username, serverPassword);
         try {
             Intent intent = new Intent(this, SAMP.class);
@@ -748,14 +770,94 @@ public class SearchRpLauncherActivity extends AppCompatActivity {
         }
     }
 
-    // ==================== GAME DATA DOWNLOADER ====================
+    // ==================== GAME DATA DOWNLOADER & LOCAL ZIP IMPORTER ====================
+    private void openLocalZipPicker() {
+        if (isDownloading) return;
+        try {
+            Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+            intent.addCategory(Intent.CATEGORY_OPENABLE);
+            intent.setType("*/*");
+            intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{"application/zip", "application/octet-stream", "*/*"});
+            startActivityForResult(intent, REQ_PICK_ZIP);
+        } catch (Exception e) {
+            toast(t("import_failed", e.getMessage() != null ? e.getMessage() : e.toString()));
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQ_PICK_ZIP && resultCode == RESULT_OK && data != null && data.getData() != null) {
+            startLocalZipImport(data.getData());
+        }
+    }
+
+    private void startLocalZipImport(Uri zipUri) {
+        if (isDownloading) return;
+        isDownloading = true;
+        cancelDlFlag.set(false);
+        switchTab(0);
+        panelDownload.setVisibility(View.VISIBLE);
+        barDownload.setIndeterminate(true);
+        tvDlStats.setText(t("importing_zip", 0));
+        updatePlayAndDataUi();
+
+        final String gpuExt = gpuInfo != null ? gpuInfo.ext : SrpGpuHelper.detect().ext;
+        bgExec.execute(() -> SrpGameDataManager.importLocalZipDataPack(
+                this,
+                zipUri,
+                gpuExt,
+                cancelDlFlag,
+                new SrpGameDataManager.DownloadCallback() {
+                    @Override public void onProgress(int p, double d, double tot, double spd) {}
+
+                    @Override
+                    public void onExtracting(int fileCount) {
+                        mainHandler.post(() -> tvDlStats.setText(t("importing_zip", fileCount)));
+                    }
+
+                    @Override
+                    public void onComplete() {
+                        mainHandler.post(() -> {
+                            isDownloading = false;
+                            panelDownload.setVisibility(View.GONE);
+                            cfg.syncSettingsIni(SearchRpLauncherActivity.this, editUsername.getText().toString().trim(), "");
+                            refreshCacheStatus();
+                            toast(t("import_done"));
+                        });
+                    }
+
+                    @Override
+                    public void onCancelled() {
+                        mainHandler.post(() -> {
+                            isDownloading = false;
+                            panelDownload.setVisibility(View.GONE);
+                            refreshCacheStatus();
+                            toast(t("dl_cancelled"));
+                        });
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        mainHandler.post(() -> {
+                            isDownloading = false;
+                            panelDownload.setVisibility(View.GONE);
+                            refreshCacheStatus();
+                            toast(t("import_failed", message));
+                        });
+                    }
+                }
+        ));
+    }
+
     private void startDataDownload() {
         String url = cfg.getDataUrl();
         if (url.isEmpty()) {
             new AlertDialog.Builder(this)
                     .setTitle("Search Roleplay")
                     .setMessage(t("dl_no_url"))
-                    .setPositiveButton(t("tab_settings"), (d, w) -> switchTab(2))
+                    .setPositiveButton(t("btn_import_zip"), (d, w) -> openLocalZipPicker())
+                    .setNeutralButton(t("tab_settings"), (d, w) -> switchTab(2))
                     .setNegativeButton(t("btn_close"), null)
                     .show();
             return;
@@ -768,9 +870,11 @@ public class SearchRpLauncherActivity extends AppCompatActivity {
         tvDlStats.setText(t("dl_connecting"));
         updatePlayAndDataUi();
 
+        final String gpuExt = gpuInfo != null ? gpuInfo.ext : SrpGpuHelper.detect().ext;
         bgExec.execute(() -> SrpGameDataManager.downloadAndExtractDataPack(
                 this,
                 url,
+                gpuExt,
                 cancelDlFlag,
                 new SrpGameDataManager.DownloadCallback() {
                     @Override

@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
   "apk": {
-    "version": "1.0.0",
-    "version_code": 100,
-    "mandatory": false,
+    "version": "1.0.1",
+    "version_code": 101,
+    "mandatory": true,
     "download_url": "https://github.com/Reyhanzz/search-roleplay-mobile/releases/latest/download/SearchRoleplayMobile.apk",
     "sha256": "",
     "changelog": [
-      "Official Search Roleplay Mobile All-in-One Launcher & Client (ARM32 + ARM64)",
-      "Added live UDP server telemetry, automatic Server Password Noir modal, and live EN/ID toggle",
-      "Added zero-ZArchiver in-app GTA SA Android 2.10 data downloader & SAMP/settings.ini HUD configurator"
+      "Added automatic GPU detection (Adreno/DXT, Mali/ETC, PowerVR/PVR) and automatic *.RENAME.* texture renaming for universal 2.10 data packs",
+      "Added automatic Android case-sensitive repair for SAMP/weapon.dat and SAMP/fonts/Arial.ttf",
+      "Added Import .zip from Phone storage (zero ZArchiver needed on Android 11-15)"
     ]
   },
   "remote_config": {

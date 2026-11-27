@@ -7,6 +7,8 @@ import android.os.Build;
 
 import androidx.core.content.FileProvider;
 
+import com.samp.mobile.R;
+
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
@@ -28,7 +30,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 /**
- * All-in-One Android Game Data Cache Manager & APK Auto-Updater.
+ * All-in-One Android Game Data Cache Manager, GPU Auto-Renamer, Local ZIP Importer & APK Auto-Updater.
  * Stores all GTA SA 2.10 files inside getExternalFilesDir(null) -> Android/data/com.searchroleplay.mobile/files/
  * so Android 11-15 work seamlessly with ZERO Scoped Storage errors and ZERO ZArchiver.
  */
@@ -132,7 +134,7 @@ public final class SrpGameDataManager {
     }
 
     public static void downloadAndExtractDataPack(
-            Context ctx, String rawUrl, AtomicBoolean cancelFlag, DownloadCallback cb) {
+            Context ctx, String rawUrl, String gpuExt, AtomicBoolean cancelFlag, DownloadCallback cb) {
         File root = getGameFilesDir(ctx);
         File dlDir = new File(root, "download");
         if (!dlDir.exists()) dlDir.mkdirs();
@@ -151,12 +153,15 @@ public final class SrpGameDataManager {
                 cb.onCancelled();
                 return;
             }
-            extractZipSmart(zipFile, root, cancelFlag, cb);
+            try (InputStream fis = new FileInputStream(zipFile)) {
+                extractZipStreamSmart(fis, root, gpuExt, cancelFlag, cb);
+            }
             safeDelete(zipFile);
             if (cancelFlag.get()) {
                 cb.onCancelled();
                 return;
             }
+            prepareAndRepairCache(ctx, gpuExt);
             cb.onComplete();
         } catch (Exception e) {
             safeDelete(zipFile);
@@ -165,6 +170,133 @@ public final class SrpGameDataManager {
             } else {
                 cb.onError(e.getMessage() != null ? e.getMessage() : e.toString());
             }
+        }
+    }
+
+    /**
+     * Import and extract a local GTA SA Android 2.10 .zip directly from phone storage via SAF Uri.
+     */
+    public static void importLocalZipDataPack(
+            Context ctx, Uri zipUri, String gpuExt, AtomicBoolean cancelFlag, DownloadCallback cb) {
+        File root = getGameFilesDir(ctx);
+        try (InputStream is = ctx.getContentResolver().openInputStream(zipUri)) {
+            if (is == null) {
+                cb.onError("Cannot read selected .zip file");
+                return;
+            }
+            extractZipStreamSmart(is, root, gpuExt, cancelFlag, cb);
+            if (cancelFlag.get()) {
+                cb.onCancelled();
+                return;
+            }
+            prepareAndRepairCache(ctx, gpuExt);
+            cb.onComplete();
+        } catch (Exception e) {
+            if (cancelFlag.get()) {
+                cb.onCancelled();
+            } else {
+                cb.onError(e.getMessage() != null ? e.getMessage() : e.toString());
+            }
+        }
+    }
+
+    /**
+     * Auto-repairs installed GTA SA 2.10 cache for this device:
+     * 1) Renames any texdb/*.RENAME.* files to match detected GPU (.dxt / .etc / .pvr)
+     * 2) Ensures Linux case-sensitive SAMP/weapon.dat & SAMP/timecyc.dat exist
+     * 3) Ensures SAMP/fonts/Arial.ttf exists (copies from fonts/arial.ttf or bundled APK font)
+     */
+    public static int prepareAndRepairCache(Context ctx, String gpuExt) {
+        String safeGpu = (gpuExt == null || gpuExt.trim().isEmpty()) ? "etc" : gpuExt.trim().toLowerCase(Locale.US);
+        File root = getGameFilesDir(ctx);
+        int fixed = 0;
+
+        // 1. Rename any leftover *.RENAME.* files in texdb/
+        File texdb = new File(root, "texdb");
+        if (texdb.isDirectory()) {
+            fixed += renameGpuPlaceholdersRecursive(texdb, safeGpu);
+        }
+
+        // 2. Ensure lowercase SAMP/weapon.dat and SAMP/timecyc.dat exist on case-sensitive Android FS
+        File sampDir = new File(root, "SAMP");
+        if (!sampDir.exists()) sampDir.mkdirs();
+
+        File weaponLower = new File(sampDir, "weapon.dat");
+        if (!weaponLower.isFile()) {
+            File wUpper = new File(sampDir, "WEAPON.dat");
+            File wData = new File(new File(root, "data"), "weapon.dat");
+            if (wUpper.isFile() && copyFile(wUpper, weaponLower)) fixed++;
+            else if (wData.isFile() && copyFile(wData, weaponLower)) fixed++;
+        }
+
+        File tcLower = new File(sampDir, "timecyc.dat");
+        if (!tcLower.isFile()) {
+            File tcUpper = new File(sampDir, "TIMECYC.DAT");
+            if (tcUpper.isFile() && copyFile(tcUpper, tcLower)) fixed++;
+        }
+
+        // 3. Ensure SAMP/fonts/Arial.ttf exists (prevents crash on font init)
+        File fontDir = new File(sampDir, "fonts");
+        if (!fontDir.exists()) fontDir.mkdirs();
+        File targetArial = new File(fontDir, "Arial.ttf");
+        if (!targetArial.isFile()) {
+            File rootArial = new File(new File(root, "fonts"), "arial.ttf");
+            File rootArialCap = new File(new File(root, "fonts"), "Arial.ttf");
+            if (rootArial.isFile() && copyFile(rootArial, targetArial)) {
+                fixed++;
+            } else if (rootArialCap.isFile() && copyFile(rootArialCap, targetArial)) {
+                fixed++;
+            } else {
+                // Fallback to bundled Barlow Medium font inside APK resources
+                try (InputStream in = ctx.getResources().openRawResource(R.font.barlow_medium);
+                     BufferedOutputStream out = new BufferedOutputStream(new FileOutputStream(targetArial))) {
+                    byte[] buf = new byte[16384];
+                    int n;
+                    while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+                    out.flush();
+                    fixed++;
+                } catch (Exception ignored) {
+                }
+            }
+        }
+        return fixed;
+    }
+
+    private static int renameGpuPlaceholdersRecursive(File dir, String gpuExt) {
+        int count = 0;
+        File[] list = dir.listFiles();
+        if (list == null) return 0;
+        for (File f : list) {
+            if (f.isDirectory()) {
+                count += renameGpuPlaceholdersRecursive(f, gpuExt);
+            } else if (f.isFile()) {
+                String name = f.getName();
+                String replaced = replaceRenamePlaceholder(name, gpuExt);
+                if (!replaced.equals(name)) {
+                    File dst = new File(f.getParentFile(), replaced);
+                    if (dst.exists()) dst.delete();
+                    if (f.renameTo(dst)) count++;
+                }
+            }
+        }
+        return count;
+    }
+
+    private static String replaceRenamePlaceholder(String pathOrName, String gpuExt) {
+        if (pathOrName == null) return "";
+        return pathOrName.replaceAll("(?i)\\.rename\\.", "." + gpuExt + ".");
+    }
+
+    private static boolean copyFile(File src, File dst) {
+        try (InputStream in = new BufferedInputStream(new FileInputStream(src), 32768);
+             BufferedOutputStream out = new BufferedOutputStream(new FileOutputStream(dst), 32768)) {
+            byte[] buf = new byte[32768];
+            int n;
+            while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+            out.flush();
+            return true;
+        } catch (Exception ignored) {
+            return false;
         }
     }
 
@@ -230,15 +362,19 @@ public final class SrpGameDataManager {
     }
 
     /**
-     * Extracts ZIP into targetRoot while automatically stripping wrapper prefixes
-     * such as "com.rockstargames.gtasa/files/", "com.samp.mobile/files/", or "files/".
+     * Extracts ZIP stream into targetRoot while:
+     * - Stripping wrapper prefixes ("files/", "com.rockstargames.gtasa/files/", etc.)
+     * - Automatically renaming *.RENAME.* textures to the device's GPU (.dxt / .etc / .pvr)
+     * - Preserving player's SAMP/settings.ini
      */
-    private static void extractZipSmart(
-            File zipFile, File targetRoot, AtomicBoolean cancelFlag, DownloadCallback cb) throws IOException {
+    private static void extractZipStreamSmart(
+            InputStream rawStream, File targetRoot, String gpuExt, AtomicBoolean cancelFlag, DownloadCallback cb)
+            throws IOException {
+        String safeGpu = (gpuExt == null || gpuExt.trim().isEmpty()) ? "etc" : gpuExt.trim().toLowerCase(Locale.US);
         String canonicalRoot = targetRoot.getCanonicalPath() + File.separator;
         int extractedCount = 0;
 
-        try (ZipInputStream zis = new ZipInputStream(new BufferedInputStream(new FileInputStream(zipFile), 65536))) {
+        try (ZipInputStream zis = new ZipInputStream(new BufferedInputStream(rawStream, 65536))) {
             ZipEntry entry;
             byte[] buf = new byte[65536];
             while ((entry = zis.getNextEntry()) != null) {
@@ -248,6 +384,9 @@ public final class SrpGameDataManager {
                     zis.closeEntry();
                     continue;
                 }
+
+                // Auto-rename Universal GTA SA Mobile *.RENAME.* textures to real device GPU extension
+                relPath = replaceRenamePlaceholder(relPath, safeGpu);
 
                 // Never overwrite player's synced SAMP/settings.ini if already configured
                 if (relPath.equalsIgnoreCase("SAMP/settings.ini") && new File(targetRoot, relPath).isFile()) {
@@ -276,7 +415,7 @@ public final class SrpGameDataManager {
                         bos.flush();
                     }
                     extractedCount++;
-                    if (extractedCount % 15 == 0) {
+                    if (extractedCount % 10 == 0) {
                         cb.onExtracting(extractedCount);
                     }
                 }
@@ -291,7 +430,6 @@ public final class SrpGameDataManager {
         String norm = rawName.replace('\\', '/');
         while (norm.startsWith("/")) norm = norm.substring(1);
 
-        // Strip standard Android GTA wrapper paths (e.g. Android/data/<pkg>/files/texdb/...)
         String lower = norm.toLowerCase(Locale.US);
         int filesIdx = lower.indexOf("/files/");
         if (filesIdx >= 0) {
@@ -299,14 +437,13 @@ public final class SrpGameDataManager {
         } else if (lower.startsWith("files/")) {
             norm = norm.substring("files/".length());
         } else {
-            // Strip a single arbitrary top folder if known GTA subfolders appear right below it
             int slash = norm.indexOf('/');
             if (slash > 0) {
                 String rest = norm.substring(slash + 1);
                 String rl = rest.toLowerCase(Locale.US);
                 if (rl.startsWith("texdb/") || rl.startsWith("audio/") || rl.startsWith("data/")
                         || rl.startsWith("samp/") || rl.startsWith("models/") || rl.startsWith("anim/")
-                        || rl.startsWith("text/") || rl.startsWith("textures/")) {
+                        || rl.startsWith("text/") || rl.startsWith("textures/") || rl.startsWith("fonts/")) {
                     norm = rest;
                 }
             }
