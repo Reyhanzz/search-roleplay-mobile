@@ -1,15 +1,17 @@
 {
   "schema_version": 1,
   "apk": {
-    "version": "1.0.3",
-    "version_code": 103,
+    "version": "1.0.4",
+    "version_code": 104,
     "mandatory": true,
     "download_url": "https://github.com/Reyhanzz/search-roleplay-mobile/releases/latest/download/SearchRoleplayMobile.apk",
     "sha256": "",
     "changelog": [
-      "Fixed SIGSEGV in CText::Load / OS_FileRead caused by missing Text/american.gxt on disk",
-      "Auto-extracts missing core APK assets (Text/*.gxt, Textures/fonts, Fonts, xml, audio/android, ShopUVs.dat) seamlessly on launch without re-downloading the 1.67 GB data pack",
-      "Added null-handle guard in native OS_FileRead_hook"
+      "Fixed in-game SIGSEGV crash in VoiceButton::draw (0x8CF42) and PlayerTags/Voice UI when samp texture icons are missing, with clean TALK button fallback",
+      "Fixed dangling pointer and out-of-bounds size lookup in MaterialTextGenerator",
+      "Fixed SA-MP 0.3.DL HTTP User-Agent (SAMP/0.3) so open.mp servers allow custom model downloads instead of 401",
+      "Fixed all 5 SA-MP 0.3.DL RPC bitstreams (SetPlayerSkin, WorldPlayerAdd, SetSpawnInfo, RequestClass, ShowActor)",
+      "Fixed GLES/PowerVR black custom textures (clamped mipmap filter modes) and RwTexDictionaryForAllTextures dlsym symbol"
     ]
   },
   "remote_config": {

@@ -67,6 +67,7 @@ public:
 
 	int GetGameState() { return m_iGameState; }
 	void SetGameState(int iGameState) { m_iGameState = iGameState; }
+	bool Is03DL() const { return m_bIs03DL; }
 
 	void ShutdownForGameModeRestart();
 	void UpdatePlayerScoresAndPings();
@@ -171,6 +172,7 @@ private:
 	RakClientInterface *m_pRakClient;
 
 	bool		m_bNameTagStatus;
+	bool		m_bIs03DL = false;
 	int			m_iGameState;
 	int			m_dwLastConnectAttempt;
 	uint32_t	m_dwMapIcon[MAX_MAP_ICONS];

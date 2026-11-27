@@ -341,11 +341,32 @@ void RequestClass(RPCParameters *rpcParams)
 
 	RakNet::BitStream bsData(Data, (iBitLength / 8) + 1, false);
 	uint8_t byteRequestOutcome = 0;
-	PLAYER_SPAWN_INFO SpawnInfo;
+	PLAYER_SPAWN_INFO SpawnInfo{};
 	CLocalPlayer *pLocalPlayer = pNetGame->GetPlayerPool()->GetLocalPlayer();
 
 	bsData.Read(byteRequestOutcome);
-	bsData.Read((char*)&SpawnInfo, sizeof(PLAYER_SPAWN_INFO));
+	if (pNetGame && pNetGame->Is03DL())
+	{
+		uint32_t dwCustomSkin = 0;
+		bsData.Read(SpawnInfo.byteTeam);
+		bsData.Read(SpawnInfo.iSkin);
+		bsData.Read(dwCustomSkin);
+		if (dwCustomSkin != 0)
+		{
+			SpawnInfo.iSkin = static_cast<int>(dwCustomSkin);
+		}
+		bsData.Read(SpawnInfo.unk);
+		bsData.Read(SpawnInfo.vecPos.x);
+		bsData.Read(SpawnInfo.vecPos.y);
+		bsData.Read(SpawnInfo.vecPos.z);
+		bsData.Read(SpawnInfo.fRotation);
+		bsData.Read((char*)SpawnInfo.iSpawnWeapons, sizeof(SpawnInfo.iSpawnWeapons));
+		bsData.Read((char*)SpawnInfo.iSpawnWeaponsAmmo, sizeof(SpawnInfo.iSpawnWeaponsAmmo));
+	}
+	else
+	{
+		bsData.Read((char*)&SpawnInfo, sizeof(PLAYER_SPAWN_INFO));
+	}
 
 	Log::addParameter("byteRequestOutcome", byteRequestOutcome);
 	Log::addParameter("SpawnInfo.byteTeam", SpawnInfo.byteTeam);
@@ -597,6 +618,15 @@ void WorldPlayerAdd(RPCParameters *rpcParams)
 	bsData.Read(playerId);
 	bsData.Read(byteTeam);
 	bsData.Read(iSkin);
+	if (pNetGame && pNetGame->Is03DL())
+	{
+		uint32_t dwCustomSkin = 0;
+		bsData.Read(dwCustomSkin);
+		if (dwCustomSkin != 0)
+		{
+			iSkin = static_cast<int>(dwCustomSkin);
+		}
+	}
 	bsData.Read(vecPos.x);
 	bsData.Read(vecPos.y);
 	bsData.Read(vecPos.z);
@@ -1368,9 +1398,31 @@ void ShowActor(RPCParameters* rpcParams)
 	CActorPool* pActorPool = pNetGame->GetActorPool();
 	if (!pActorPool) return;
 
-	NEW_ACTOR newActor;
+	NEW_ACTOR newActor{};
 	RakNet::BitStream bsData(Data, (iBitLength / 8) + 1, false);
-	bsData.Read((char*)& newActor, sizeof(NEW_ACTOR));
+	if (pNetGame && pNetGame->Is03DL())
+	{
+		uint32_t dwCustomSkin = 0;
+		uint8_t byteInvuln = 0;
+		bsData.Read(newActor.ActorID);
+		bsData.Read(newActor.iSkin);
+		bsData.Read(dwCustomSkin);
+		if (dwCustomSkin != 0)
+		{
+			newActor.iSkin = static_cast<int>(dwCustomSkin);
+		}
+		bsData.Read(newActor.vecPos.x);
+		bsData.Read(newActor.vecPos.y);
+		bsData.Read(newActor.vecPos.z);
+		bsData.Read(newActor.fAngle);
+		bsData.Read(newActor.fHealth);
+		bsData.Read(byteInvuln);
+		newActor.bInvulnerable = (byteInvuln != 0);
+	}
+	else
+	{
+		bsData.Read((char*)& newActor, sizeof(NEW_ACTOR));
+	}
 
 	if (IsValidPedModel(newActor.iSkin))
 	{

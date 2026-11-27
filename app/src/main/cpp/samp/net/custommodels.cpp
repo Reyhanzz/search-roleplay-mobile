@@ -531,7 +531,10 @@ RwTexture* CreateRwTextureFromRgba(const char* texName, const char* maskName, in
     }
 
     uint32_t filterMode = filterFlags & 0xFFu;
-    if (filterMode == 0 || filterMode > rwFILTERLINEARMIPLINEAR)
+    // CreateRwTextureFromRgba only uploads mip level 0; clamp mipmap filters so GLES/PowerVR never samples incomplete mipmaps as black.
+    if (filterMode == rwFILTERNEAREST || filterMode == rwFILTERMIPNEAREST)
+        filterMode = rwFILTERNEAREST;
+    else
         filterMode = rwFILTERLINEAR;
     uint32_t addrU = (filterFlags >> 8) & 0x0Fu;
     uint32_t addrV = (filterFlags >> 12) & 0x0Fu;
@@ -777,7 +780,7 @@ bool TryLoadMobileNativeTxd(const std::vector<uint8_t>& txdData, std::unordered_
     auto fnRead    = reinterpret_cast<FnDictRead>(dlsym(CHook::lib, "_Z28RwTexDictionaryGtaStreamReadP8RwStream"));
     if (!fnRead)
         fnRead     = reinterpret_cast<FnDictRead>(dlsym(CHook::lib, "_Z25RwTexDictionaryStreamReadP8RwStream"));
-    auto fnForAll  = reinterpret_cast<FnDictForAll>(dlsym(CHook::lib, "_Z29RwTexDictionaryForAllTexturesP15RwTexDictionaryPFP9RwTextureS2_PvES3_"));
+    auto fnForAll  = reinterpret_cast<FnDictForAll>(dlsym(CHook::lib, "_Z29RwTexDictionaryForAllTexturesPK15RwTexDictionaryPFP9RwTextureS3_PvES4_"));
     auto fnDestroy = reinterpret_cast<FnDictDestroy>(dlsym(CHook::lib, "_Z22RwTexDictionaryDestroyP15RwTexDictionary"));
 
     if (!fnOpen || !fnClose || !fnRead || !fnForAll || !fnDestroy)

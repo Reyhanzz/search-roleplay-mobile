@@ -62,6 +62,7 @@ CNetGame::CNetGame(const char* szHostOrIp, int iPort, const char *szPlayerName, 
 	strcpy(m_szHostName, "SA-MP");
 	strncpy(m_szHostOrIp, szHostOrIp, sizeof(m_szHostOrIp));
 	m_iPort = iPort;
+	m_bIs03DL = (pSettings && strncmp(pSettings->Get().szVersion, "0.3.DL", 6) == 0);
 
 	m_pRakClient = RakNetworkFactory::GetRakClientInterface();
 	InitializePools();
@@ -585,6 +586,7 @@ void CNetGame::Packet_ConnectionSucceeded(Packet *pkt)
 		? pSettings->Get().szVersion : SAMP_VERSION;
 	int iVersion = (strncmp(szClientVersion, "0.3.DL", 6) == 0)
 		? NETGAME_VERSION_03DL : NETGAME_VERSION_037;
+	m_bIs03DL = (iVersion == NETGAME_VERSION_03DL);
 	uint8_t byteMod = 1;
 
 	bsSuccAuth.IgnoreBits(8);	// packetId

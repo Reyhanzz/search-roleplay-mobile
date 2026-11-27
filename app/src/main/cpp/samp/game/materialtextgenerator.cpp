@@ -35,10 +35,11 @@ void MaterialTextGenerator::SetUpScene()
 void MaterialTextGenerator::Render(const char* text, const ImVec2& size, int font_size, bool bold,
 								   const ImColor& font_color, const ImColor& background_color, int text_align)
 {
-	if (pUI) {
+	if (pUI && pUI->renderer()) {
 		ImGui::NewFrame();
 
-		auto info = Encoding::cp2utf(text).c_str();
+		std::string utfText = Encoding::cp2utf(text ? text : "");
+		const char* info = utfText.c_str();
 
 		pUI->renderer()->drawRect(ImVec2(0.0f, 0.0f), size, background_color, true);
 		ImVec2 text_size = pUI->renderer()->calculateTextSize(info, font_size);
@@ -117,6 +118,8 @@ void MaterialTextGenerator::GetMaterialSize(int size, int* x, int* y)
 	};
 
 	int del = (size / 10) - 1;
+	if (del < 0) del = 0;
+	if (del > 13) del = 13;
 	*x = sizes[del][0];
 	*y = sizes[del][1];
 }

@@ -118,9 +118,30 @@ void ScrSetSpawnInfo(RPCParameters *rpcParams)
 	unsigned char * Data = reinterpret_cast<unsigned char *>(rpcParams->input);
 	int iBitLength = rpcParams->numberOfBitsOfData;
 
-	PLAYER_SPAWN_INFO spawnInfo;
+	PLAYER_SPAWN_INFO spawnInfo{};
 	RakNet::BitStream bsData(Data, (iBitLength / 8) + 1, false);
-	bsData.Read((char*)&spawnInfo, sizeof(PLAYER_SPAWN_INFO));
+	if (pNetGame && pNetGame->Is03DL())
+	{
+		uint32_t dwCustomSkin = 0;
+		bsData.Read(spawnInfo.byteTeam);
+		bsData.Read(spawnInfo.iSkin);
+		bsData.Read(dwCustomSkin);
+		if (dwCustomSkin != 0)
+		{
+			spawnInfo.iSkin = static_cast<int>(dwCustomSkin);
+		}
+		bsData.Read(spawnInfo.unk);
+		bsData.Read(spawnInfo.vecPos.x);
+		bsData.Read(spawnInfo.vecPos.y);
+		bsData.Read(spawnInfo.vecPos.z);
+		bsData.Read(spawnInfo.fRotation);
+		bsData.Read((char*)spawnInfo.iSpawnWeapons, sizeof(spawnInfo.iSpawnWeapons));
+		bsData.Read((char*)spawnInfo.iSpawnWeaponsAmmo, sizeof(spawnInfo.iSpawnWeaponsAmmo));
+	}
+	else
+	{
+		bsData.Read((char*)&spawnInfo, sizeof(PLAYER_SPAWN_INFO));
+	}
 
 	pNetGame->GetPlayerPool()->GetLocalPlayer()->SetSpawnInfo(&spawnInfo);
 
@@ -456,17 +477,35 @@ void ScrSetPlayerSkin(RPCParameters* rpcParams)
 	CPlayerPool* pPlayerPool = pNetGame->GetPlayerPool();
 	if (!pPlayerPool) return;
 
-	int iPlayerID;
-	int iModel;
+	int iPlayerID = 0;
+	int iModel = 0;
 	RakNet::BitStream bsData(Data, (iBitLength / 8) + 1, false);
-	bsData.Read(iPlayerID);
-	bsData.Read(iModel);
+	if (pNetGame && pNetGame->Is03DL())
+	{
+		uint16_t wPlayerID = 0;
+		uint32_t dwBaseSkin = 0;
+		uint32_t dwCustomSkin = 0;
+		bsData.Read(wPlayerID);
+		bsData.Read(dwBaseSkin);
+		bsData.Read(dwCustomSkin);
+		iPlayerID = static_cast<int>(wPlayerID);
+		iModel = (dwCustomSkin != 0) ? static_cast<int>(dwCustomSkin) : static_cast<int>(dwBaseSkin);
+	}
+	else
+	{
+		bsData.Read(iPlayerID);
+		bsData.Read(iModel);
+	}
 
 	if (IsValidPedModel(iModel))
 	{
 		if (pPlayerPool->GetLocalPlayerID() == iPlayerID)
 		{
-			pPlayerPool->GetLocalPlayer()->GetPlayerPed()->SetModelIndex(iModel);
+			CLocalPlayer* pLocal = pPlayerPool->GetLocalPlayer();
+			if (pLocal && pLocal->GetPlayerPed())
+			{
+				pLocal->GetPlayerPed()->SetModelIndex(iModel);
+			}
 		}
 		else
 		{

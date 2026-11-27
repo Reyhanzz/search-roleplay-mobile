@@ -232,7 +232,7 @@ public class SAMP extends GTASA implements CustomKeyboard.InputListener, HeightP
                 conn.setInstanceFollowRedirects(false);
                 conn.setConnectTimeout(15000);
                 conn.setReadTimeout(30000);
-                conn.setRequestProperty("User-Agent", "SAMP-0.3.DL-Mobile/1.0");
+                conn.setRequestProperty("User-Agent", "SAMP/0.3");
                 conn.connect();
 
                 int code = conn.getResponseCode();
