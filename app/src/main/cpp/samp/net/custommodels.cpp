@@ -1501,10 +1501,14 @@ bool LoadCustomModelIntoEngine(CustomModelEntry& entry)
     info.m_nLoadState     = LOADSTATE_NOT_LOADED;
 
     bool converted = false;
+    // Custom 0.3.DL models are permanently resident (never evicted by CStreaming::RemoveModel),
+    // so exclude their DFF size from CStreaming::ms_memoryUsed to avoid starving vanilla map streaming.
+    const size_t streamingMemUsedBefore = CStreaming::ms_memoryUsed;
     {
         ScopedCustomTextureFind texGuard(texMap);
         converted = CStreaming::ConvertBufferToObject(dffBytes.data(), slot);
     }
+    CStreaming::ms_memoryUsed = streamingMemUsedBefore;
 
     if (info.InList())
     {

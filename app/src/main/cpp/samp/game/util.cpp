@@ -2001,18 +2001,18 @@ uintptr_t LoadTexture(const char* texname)
 
 uintptr_t LoadTexture(const char* texname)
 {
-    static char* texdb[] = { "samp", "gta3", "gta_int", "player", "txd"};
+    if (!texname || !texname[0] || !strcasecmp(texname, "none"))
+        return 0;
 
-    for (int i = 0; i < sizeof(texdb) / sizeof(const char*); i++)
+    static const char* texdb[] = { "samp", "gta3", "gta_int", "player", "txd", "mobile" };
+
+    for (size_t i = 0; i < sizeof(texdb) / sizeof(texdb[0]); i++)
     {
         uintptr_t texture = (uintptr_t)CUtil::LoadTextureFromDB(texdb[i], texname);
-        if (texture != 0) {
-            FLog("Texture: %s loaded from %s", texname, texdb[i]);
+        if (texture != 0)
             return texture;
-        }
     }
 
-    FLog("Texture: %s not found!", texname);
     return 0;
 }
 

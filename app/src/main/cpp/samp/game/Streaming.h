@@ -177,6 +177,8 @@ VALIDATE_SIZE(tStreamingChannel, 0x98);
 
 class CStreaming {
 public:
+    static constexpr size_t STREAMING_MEMORY_BUDGET = VER_x32 ? (128u * 1024u * 1024u) : (384u * 1024u * 1024u);
+
     static inline size_t ms_memoryUsed;
     static inline size_t ms_memoryAvailable;
     static inline uint32 desiredNumVehiclesLoaded;

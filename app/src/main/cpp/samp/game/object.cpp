@@ -8,6 +8,7 @@
 #include "game/Models/ModelInfo.h"
 
 #include <cmath>
+#include <strings.h>
 
 extern CGame* pGame;
 extern CNetGame* pNetGame;
@@ -354,10 +355,6 @@ float CObject::DistanceRemaining(RwMatrix* matPos)
 
 void CObject::SetMaterial(int iModel, int iMaterialIndex, char* txdname, char* texturename, uint32_t dwColor)
 {
-	FLog("SetMaterial: model: %d, %s, %s", iModel, txdname, texturename);
-
-	int iTryCount = 0;
-
 	if (iMaterialIndex < 16)
 	{
 		if (m_MaterialTexture[iMaterialIndex]) {
@@ -365,7 +362,9 @@ void CObject::SetMaterial(int iModel, int iMaterialIndex, char* txdname, char* t
 			m_MaterialTexture[iMaterialIndex] = 0;
 		}
 
-		m_MaterialTexture[iMaterialIndex] = (uintptr_t)LoadTexture(texturename);
+		if (texturename && texturename[0] && strcasecmp(texturename, "none") != 0) {
+			m_MaterialTexture[iMaterialIndex] = (uintptr_t)LoadTexture(texturename);
+		}
 		m_dwMaterialColor[iMaterialIndex] = dwColor;
 		m_iMaterialType[iMaterialIndex] = MATERIAL_TYPE_MATERIAL;
 		m_bHasMaterial = true;

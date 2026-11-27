@@ -26,36 +26,29 @@ uintptr_t CUtil::FindLib(const char* libname)
 
 RwTexture* CUtil::LoadTextureFromDB(const char* dbname, const char* texture)
 {
-    TextureDatabaseRuntime* db_handle = TextureDatabaseRuntime::GetDatabase(dbname);
-    if(!db_handle)
-    {
-        FLog("Error: Database not found! (%s)", dbname);
+    if (!dbname || !texture || !texture[0])
         return nullptr;
-    }
+
+    TextureDatabaseRuntime* db_handle = TextureDatabaseRuntime::GetDatabase(dbname);
+    if (!db_handle)
+        return nullptr;
 
     TextureDatabaseRuntime::Register(db_handle);
 
     auto tex = CUtil::GetTexture(texture);
     TextureDatabaseRuntime::Unregister(db_handle);
 
-    if(!tex)
-    {
-        FLog("Error: Texture (%s) not found in database (%s)", dbname, texture);
-        return nullptr;
-    }
-
     return tex;
 }
 
 RwTexture* CUtil::GetTexture(const char* name)
 {
+    if (!name || !name[0])
+        return nullptr;
+
     auto tex = TextureDatabaseRuntime::GetTexture(name);
     if (!tex)
-    {
-        //tex = CUtil::LoadTextureFromDB("gta3", "ahoodfence2");
-        FLog("WARNING! No tex = %s", name);
         return nullptr;
-    }
     ++tex->refCount;
 
     return tex;

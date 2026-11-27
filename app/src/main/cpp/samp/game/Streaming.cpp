@@ -379,29 +379,34 @@ void CStreaming::Update() {
     if (CTimer::GetIsPaused())
         return;
 
+    if (ms_memoryAvailable < STREAMING_MEMORY_BUDGET) {
+        ms_memoryAvailable = STREAMING_MEMORY_BUDGET;
+        *(uint32_t*)(g_libGTASA + (VER_x32 ? 0x00685FA0 : 0x85EBD8)) = static_cast<uint32_t>(STREAMING_MEMORY_BUDGET);
+    }
+
     if(!CStreaming::GetInfo(MODEL_MALE01).IsLoaded()) {
         RequestModel(MODEL_MALE01, STREAMING_KEEP_IN_MEMORY);
         CStreaming::LoadAllRequestedModels(false);
     }
     CModelInfo::GetModelInfo(MODEL_MALE01)->m_nRefCount = 999;
 
-    if(CTimer::m_snTimeInMillisecondsNonClipped % 100 == 0)
-        RemoveLeastUsedModel(STREAMING_KEEP_IN_MEMORY);
-
-
     static double previousTime{};
     const double currentTimeInSeconds = CTimer::m_snTimeInMillisecondsNonClipped / 1000.0;
     const double deltaTime = currentTimeInSeconds - previousTime;
     previousTime = currentTimeInSeconds;
-    const double clampedDeltaTime = std::min(0.1, deltaTime);
-    TextureDatabaseRuntime::UpdateStreaming(clampedDeltaTime, true);
+    const double clampedDeltaTime = std::clamp(deltaTime, 0.0, 0.1);
+    // Pass flush=false during active gameplay (matches stock libGTASA); flush=true wipes 45 MB of streamed textures every frame!
+    TextureDatabaseRuntime::UpdateStreaming(static_cast<float>(clampedDeltaTime), false);
 
     CCamera& TheCamera = *reinterpret_cast<CCamera*>(g_libGTASA + (VER_x32 ? 0x00951FA8 : 0xBBA8D0));
 
     const auto& camPos = TheCamera.GetPosition();
-    const float fCamDistanceToGroundZ = camPos.z - TheCamera.CalculateGroundHeight(eGroundHeightType::ENTITY_BB_BOTTOM);
+    const float fGroundHeight = TheCamera.CalculateGroundHeight(eGroundHeightType::ENTITY_BB_BOTTOM);
+    const float fCamDistanceToGroundZ = camPos.z - fGroundHeight;
     if (!ms_disableStreaming && !CRenderer::m_loadingPriority) {
-        if (fCamDistanceToGroundZ >= 50.0f) {
+        // Avoid falling back to LOD-only mode when ground collision is not yet loaded (fGroundHeight == 0 at hill elevations)
+        const bool bHighInAir = (fCamDistanceToGroundZ >= 50.0f) && !(fGroundHeight == 0.0f && camPos.z < 120.0f);
+        if (bHighInAir) {
             if (CGame::CanSeeOutSideFromCurrArea()) {
                 AddLodsToRequestList(&camPos, 0);
             }
@@ -411,48 +416,39 @@ void CStreaming::Update() {
         }
     }
 
-//    if (CTimer::GetFrameCounter() % 128 == 106) {
-//        m_bBoatsNeeded = false;
-//        if (camPos.z < 500.0f) {
-//            m_bBoatsNeeded = ThePaths.IsWaterNodeNearby(camPos, 80.0f);
-//        }
-//    }
-    if(!pNetGame || !pNetGame->GetPlayerPool()->GetLocalPlayer())
-        return;
-
-    auto pLocalPed = pNetGame->GetPlayerPool()->GetLocalPlayer()->GetPlayerPed()->m_pPed;
-    const CVector& playerPos = pLocalPed->GetPosition();
-//    if (!ms_disableStreaming
-//        && !CCutsceneMgr::IsCutsceneProcessing()
-//        && CGame::CanSeeOutSideFromCurrArea()
-//        && CReplay::Mode != MODE_PLAYBACK
-//        && fCamDistanceToGroundZ < 50.0f
-//            ) {
-//        StreamVehiclesAndPeds_Always(playerPos);
-//        if (!IsVeryBusy()) {
-//            StreamVehiclesAndPeds();
-//            StreamZoneModels(playerPos);
-//        }
-//    }
+    // Always advance streaming channels (even before local player spawns); pump both channels when a backlog exists
     LoadRequestedModels();
+    if (ms_numModelsRequested > 4 && !ms_bLoadingBigModel) {
+        LoadRequestedModels();
+    }
 
-    if (pLocalPed->IsInVehicle()) {
-        CVehicleGTA* remoteVehicle = pLocalPed->pVehicle;
+    if (!pNetGame || !pNetGame->GetPlayerPool() || !pNetGame->GetPlayerPool()->GetLocalPlayer()) {
+        if (ms_bEnableRequestListPurge) {
+            PurgeRequestList();
+        }
+        return;
+    }
 
+    auto* pPlayerPed = pNetGame->GetPlayerPool()->GetLocalPlayer()->GetPlayerPed();
+    auto* pLocalPed = pPlayerPed ? pPlayerPed->m_pPed : nullptr;
+    if (pLocalPed) {
+        const CVector& playerPos = pLocalPed->GetPosition();
         CColStore::AddCollisionNeededAtPosn(&playerPos);
         CIplStore::AddIplsNeededAtPosn(&playerPos);
 
-        const auto& removeVehiclePos = remoteVehicle->GetPosition();
-        CColStore::LoadCollision(removeVehiclePos, false);
-        CColStore::EnsureCollisionIsInMemory(&removeVehiclePos);
-        CIplStore::LoadIpls(removeVehiclePos, false);
-        CIplStore::EnsureIplsAreInMemory(&removeVehiclePos);
-    }
-    else {
-        CColStore::LoadCollision(playerPos, false);
-        CColStore::EnsureCollisionIsInMemory(&playerPos);
-        CIplStore::LoadIpls(playerPos, false);
-        CIplStore::EnsureIplsAreInMemory(&playerPos);
+        if (pLocalPed->IsInVehicle() && pLocalPed->pVehicle) {
+            const auto& vehiclePos = pLocalPed->pVehicle->GetPosition();
+            CColStore::LoadCollision(vehiclePos, false);
+            CColStore::EnsureCollisionIsInMemory(&vehiclePos);
+            CIplStore::LoadIpls(vehiclePos, false);
+            CIplStore::EnsureIplsAreInMemory(&vehiclePos);
+        }
+        else {
+            CColStore::LoadCollision(playerPos, false);
+            CColStore::EnsureCollisionIsInMemory(&playerPos);
+            CIplStore::LoadIpls(playerPos, false);
+            CIplStore::EnsureIplsAreInMemory(&playerPos);
+        }
     }
 
     if (ms_bEnableRequestListPurge) {
@@ -904,11 +900,13 @@ void CStreaming::RetryLoadFile(int32 chIdx) {
 }
 
 void CStreaming::MakeSpaceFor(size_t memoryToCleanInBytes) {
-    auto lastmemused = ms_memoryUsed;
-    while (ms_memoryUsed >= ms_memoryAvailable - memoryToCleanInBytes) {
-        lastmemused = ms_memoryUsed;
-        if (!RemoveLeastUsedModel(0) || lastmemused == ms_memoryUsed) {
-          //  DeleteRwObjectsBehindCamera(ms_memoryAvailable - memoryToCleanInBytes);
+    const size_t targetMem = (ms_memoryAvailable > memoryToCleanInBytes)
+        ? (ms_memoryAvailable - memoryToCleanInBytes)
+        : 0;
+    int maxIterations = 64;
+    while (ms_memoryUsed >= targetMem && maxIterations-- > 0) {
+        if (!RemoveLeastUsedModel(STREAMING_DONTREMOVE_IN_LOADSCENE)) {
+            DeleteRwObjectsBehindCamera(targetMem);
             return;
         }
     }
@@ -968,7 +966,9 @@ bool CStreaming::RemoveLeastUsedModel(int32 streamingFlags) {
     }
 
     CCamera& TheCamera = *reinterpret_cast<CCamera*>(g_libGTASA + (VER_x32 ? 0x00951FA8 : 0xBBA8D0));
-    if (TheCamera.GetPosition().z - TheCamera.CalculateGroundHeight(eGroundHeightType::ENTITY_BB_BOTTOM) <= 50.0f){
+    if (TheCamera.GetPosition().z - TheCamera.CalculateGroundHeight(eGroundHeightType::ENTITY_BB_BOTTOM) <= 50.0f) {
+        if (DeleteLeastUsedEntityRwObject(true, streamingFlags))
+            return true;
         return DeleteLeastUsedEntityRwObject(false, streamingFlags);
     }
     return false;

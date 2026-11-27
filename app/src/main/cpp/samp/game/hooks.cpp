@@ -254,16 +254,23 @@ void (*CEntity_Render)(CEntityGTA* pEntity);
 int g_iLastRenderedObject;
 void CEntity_Render_hook(CEntityGTA* pEntity)
 {
-    if(iBuildingToRemoveCount > 1)
+    if (!pEntity) return;
+
+    if (iBuildingToRemoveCount >= 1)
     {
-        if(pEntity && *(uintptr_t*)pEntity != g_libGTASA+(VER_x32 ? 0x667D18:0x8300A0) && !pNetGame->GetObjectPool()->GetObjectFromGtaPtr(pEntity))
+        if (*(uintptr_t*)pEntity != g_libGTASA + (VER_x32 ? 0x667D18 : 0x8300A0) &&
+            (!pNetGame || !pNetGame->GetObjectPool() || !pNetGame->GetObjectPool()->GetObjectFromGtaPtr(pEntity)))
         {
-            for (auto &entry : RemoveBuildingData)
+            const uint16_t modelId = static_cast<uint16_t>(pEntity->GetModelId());
+            const CVector& entPos = pEntity->GetPosition();
+            for (const auto& entry : RemoveBuildingData)
             {
-                float fDistance = GetDistance(entry.vecPos, pEntity->GetMatrix().m_pos);
-                if(fDistance <= entry.fRange)
+                if (entry.usModelIndex == 0xFFFF || modelId == entry.usModelIndex)
                 {
-                    if(pEntity->GetModelId() == entry.usModelIndex)
+                    const float dx = entry.vecPos.x - entPos.x;
+                    const float dy = entry.vecPos.y - entPos.y;
+                    const float dz = entry.vecPos.z - entPos.z;
+                    if (dx * dx + dy * dy + dz * dz <= entry.fRange * entry.fRange)
                     {
                         pEntity->m_bUsesCollision = 0;
                         pEntity->m_bCollisionProcessed = 0;
@@ -1822,7 +1829,9 @@ void(*CStreaming__Init2)();
 void CStreaming__Init2_hook()
 {
     CStreaming__Init2();
-    *(uint32_t*)(g_libGTASA+(VER_x32 ? 0x00685FA0:0x85EBD8)) = 536870912;
+    CStreaming::ms_memoryAvailable = CStreaming::STREAMING_MEMORY_BUDGET;
+    *(uint32_t*)(g_libGTASA + (VER_x32 ? 0x00685FA0 : 0x85EBD8)) = static_cast<uint32_t>(CStreaming::STREAMING_MEMORY_BUDGET);
+    FLog("CStreaming::Init2: ms_memoryAvailable set to %zu MB", CStreaming::STREAMING_MEMORY_BUDGET / (1024u * 1024u));
 }
 
 int(*mpg123_param)(void* mh, int key, long val, int ZERO, double fval);
@@ -1956,6 +1965,7 @@ void InstallSpecialHooks()
 
 	CHook::InlineHook("_Z32_rxOpenGLDefaultAllInOneRenderCBP10RwResEntryPvhj", &rxOpenGLDefaultAllInOneRenderCB_hook, &rxOpenGLDefaultAllInOneRenderCB);
 	CHook::InlineHook("_ZN25CCustomBuildingDNPipeline18CustomPipeRenderCBEP10RwResEntryPvhj", &CCustomBuildingDNPipeline__CustomPipeRenderCB_hook, &CCustomBuildingDNPipeline__CustomPipeRenderCB);
+    CHook::InlineHook("_ZN10CStreaming5Init2Ev", &CStreaming__Init2_hook, &CStreaming__Init2);
 }
 
 #include <EGL/egl.h>
@@ -2043,8 +2053,6 @@ void InstallHooks()
 #endif
 
     CHook::InlineHook("_ZN5CDraw6SetFOVEfb", &CDraw__SetFOV_hook, &CDraw__SetFOV);
-
-    CHook::InlineHook("_ZN10CStreaming5Init2Ev", &CStreaming__Init2_hook, &CStreaming__Init2);
 
 /*#if VER_x32
     CHook::InstallPLT( g_libGTASA + 0x66F3D4, &mpg123_param_hook, &mpg123_param);
