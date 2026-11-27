@@ -1,13 +1,14 @@
 {
   "schema_version": 1,
   "apk": {
-    "version": "1.0.11",
-    "version_code": 111,
+    "version": "1.0.12",
+    "version_code": 112,
     "mandatory": true,
     "download_url": "https://github.com/Reyhanzz/search-roleplay-mobile/releases/latest/download/SearchRoleplayMobile.apk",
     "sha256": "",
     "changelog": [
-      "Fixed SIGSEGV in _rwOpenGLRasterSetImage (RwRasterSetFromImage) when decoding non-power-of-two 0.3.DL custom textures: resample RGBA to exact power-of-two and enforce img dimensions match RwImageFindRasterFormat output before upload"
+      "Fixed ARM32 SIGBUS alignment fault in RakNet::BitStream::ReadVector/ReadNormVector/ReadNormQuat/ReadCompressed (VFP vstr on #pragma pack(1) ONFOOT_SYNC_DATA::vecMoveSpeed at offset +0x26)",
+      "Made all packed sync struct vector/quaternion copies in netgame, remoteplayer, and localplayer alignment-safe on ARM32 and removed dead NULL m_pCurrentVehicle deref in ProcessSurfing"
     ]
   },
   "remote_config": {

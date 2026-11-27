@@ -723,16 +723,24 @@ void CNetGame::Packet_PlayerSync(Packet *pkt)
 	ofSync.byteCurrentWeapon ^= (byteCurrentWeapon ^ ofSync.byteCurrentWeapon) & 0x3F;
 
 	bsData.Read(ofSync.byteSpecialAction);
-	bsData.ReadVector(ofSync.vecMoveSpeed.x, ofSync.vecMoveSpeed.y, ofSync.vecMoveSpeed.z);
+	float vx = 0.0f, vy = 0.0f, vz = 0.0f;
+	bsData.ReadVector(vx, vy, vz);
+	CVector vMove(vx, vy, vz);
+	memcpy(&ofSync.vecMoveSpeed, &vMove, sizeof(CVector));
 
 	bool bHasVehicleSurfingInfo;
 	bsData.Read(bHasVehicleSurfingInfo);
 	if (bHasVehicleSurfingInfo)
 	{
-		bsData.Read(ofSync.wSurfID);
-		bsData.Read(ofSync.vecSurfOffsets.x);
-		bsData.Read(ofSync.vecSurfOffsets.y);
-		bsData.Read(ofSync.vecSurfOffsets.z);
+		uint16_t wSurfID = 0;
+		float sx = 0.0f, sy = 0.0f, sz = 0.0f;
+		bsData.Read(wSurfID);
+		bsData.Read(sx);
+		bsData.Read(sy);
+		bsData.Read(sz);
+		ofSync.wSurfID = wSurfID;
+		CVector vSurf(sx, sy, sz);
+		memcpy(&ofSync.vecSurfOffsets, &vSurf, sizeof(CVector));
 	}
 	else
 		ofSync.wSurfID = INVALID_VEHICLE_ID;
@@ -740,7 +748,9 @@ void CNetGame::Packet_PlayerSync(Packet *pkt)
 	bool bHasAnimation;
 	bsData.Read(bHasAnimation);
 	if (bHasAnimation) {
-		bsData.Read(ofSync.dwAnimation);
+		uint32_t dwAnim = 0;
+		bsData.Read(dwAnim);
+		ofSync.dwAnimation = dwAnim;
 	}
 	else {
 		ofSync.dwAnimation = 0x80000000;
@@ -776,7 +786,10 @@ void CNetGame::Packet_VehicleSync(Packet* pkt)
 	icSync.quat.Set(x, y, z, w);
 	
 	bsData.Read((char*)& icSync.vecPos, sizeof(CVector));
-	bsData.ReadVector(icSync.vecMoveSpeed.x, icSync.vecMoveSpeed.y, icSync.vecMoveSpeed.z);
+	float ivx = 0.0f, ivy = 0.0f, ivz = 0.0f;
+	bsData.ReadVector(ivx, ivy, ivz);
+	CVector ivMove(ivx, ivy, ivz);
+	memcpy(&icSync.vecMoveSpeed, &ivMove, sizeof(CVector));
 
 	// car health
 	uint16_t wTempVehicleHealth;
@@ -814,10 +827,18 @@ void CNetGame::Packet_VehicleSync(Packet* pkt)
 	if (bCheck) icSync.byteLandingGearState = 1;
 	// train speed
 	bsData.Read(bCheck);
-	if (bCheck) bsData.Read(icSync.fTrainSpeed);
+	if (bCheck) {
+		float fTrainSpeed = 0.0f;
+		bsData.Read(fTrainSpeed);
+		icSync.fTrainSpeed = fTrainSpeed;
+	}
 	// triler id
 	bsData.Read(bCheck);
-	if (bCheck) bsData.Read(icSync.TrailerID);
+	if (bCheck) {
+		uint16_t trailerId = 0;
+		bsData.Read(trailerId);
+		icSync.TrailerID = trailerId;
+	}
 
 	CRemotePlayer* pRemotePlayer = GetPlayerPool()->GetAt(PlayerID);
 	if (pRemotePlayer) {

@@ -29,6 +29,7 @@
 #include <assert.h>
 #include <math.h>
 #include <float.h>
+#include <string.h>
 
 #ifdef _MSC_VER
 #pragma warning( push )
@@ -1123,7 +1124,8 @@ namespace RakNet
 		unsigned short compressedFloat;
 		if (Read(compressedFloat))
 		{
-			var = ((float)compressedFloat / 32767.5f - 1.0f);
+			float val = ((float)compressedFloat / 32767.5f - 1.0f);
+			memcpy(&var, &val, sizeof(float));
 			return true;
 		}
 		return false;
@@ -1136,7 +1138,8 @@ namespace RakNet
 		unsigned long compressedFloat;
 		if (Read(compressedFloat))
 		{
-			var = ((double)compressedFloat / 2147483648.0 - 1.0);
+			double val = ((double)compressedFloat / 2147483648.0 - 1.0);
+			memcpy(&var, &val, sizeof(double));
 			return true;
 		}
 		return false;
@@ -1282,80 +1285,68 @@ namespace RakNet
 	template <class templateType> // templateType for this function must be a float or double
 		bool BitStream::ReadNormVector( templateType &x, templateType &y, templateType &z )
 	{
-		//	unsigned short sy, sz;
 		bool yZero, zZero;
 		bool xNeg;
-		float cy,cz;
+		float cy = 0.0f, cz = 0.0f;
+		templateType lx = 0, ly = 0, lz = 0;
 
 		Read(xNeg);
 
 		Read(yZero);
 		if (yZero)
-			y=0.0;
+			ly = 0.0;
 		else
 		{
-			ReadCompressed((float&)cy);
-			y=cy;
-			//Read(sy);
-			//y=((float)sy / 32767.5f - 1.0f);
+			ReadCompressed(cy);
+			ly = cy;
 		}
 
 		if (!Read(zZero))
 			return false;
 
 		if (zZero)
-			z=0.0;
+			lz = 0.0;
 		else
 		{
-			//	if (!Read(sz))
-			//		return false;
-
-			//	z=((float)sz / 32767.5f - 1.0f);
-			if (!ReadCompressed((float&)cz))
+			if (!ReadCompressed(cz))
 				return false;
-			z=cz;
+			lz = cz;
 		}
 
-		x = (templateType) (sqrtf((templateType)1.0 - y*y - z*z));
+		double sq = 1.0 - (double)ly * (double)ly - (double)lz * (double)lz;
+		lx = (sq > 0.0) ? (templateType)sqrt(sq) : (templateType)0.0;
 		if (xNeg)
-			x=-x;
+			lx = -lx;
+
+		// Store via memcpy so ARM32 VFP vstr never faults on #pragma pack(1) struct members.
+		memcpy(&x, &lx, sizeof(templateType));
+		memcpy(&y, &ly, sizeof(templateType));
+		memcpy(&z, &lz, sizeof(templateType));
 		return true;
 	}
 
 	template <class templateType> // templateType for this function must be a float or double
 		bool BitStream::ReadVector( templateType &x, templateType &y, templateType &z )
 	{
-		float magnitude;
-		//unsigned short sx,sy,sz;
+		float magnitude = 0.0f;
 		if (!Read(magnitude))
 			return false;
-		if (magnitude!=0.0)
+		templateType lx = 0, ly = 0, lz = 0;
+		if (magnitude != 0.0f)
 		{
-			//	Read(sx);
-			//	Read(sy);
-			//	if (!Read(sz))
-			//		return false;
-			//	x=((float)sx / 32767.5f - 1.0f) * magnitude;
-			//	y=((float)sy / 32767.5f - 1.0f) * magnitude;
-			//	z=((float)sz / 32767.5f - 1.0f) * magnitude;
-			float cx,cy,cz;
+			float cx = 0.0f, cy = 0.0f, cz = 0.0f;
 			ReadCompressed(cx);
 			ReadCompressed(cy);
 			if (!ReadCompressed(cz))
 				return false;
-			x=cx;
-			y=cy;
-			z=cz;
-			x*=magnitude;
-			y*=magnitude;
-			z*=magnitude;
+			lx = (templateType)(cx * magnitude);
+			ly = (templateType)(cy * magnitude);
+			lz = (templateType)(cz * magnitude);
 		}
-		else
-		{
-			x=0.0;
-			y=0.0;
-			z=0.0;
-		}
+		// Store via memcpy so ARM32 VFP vstr never faults on #pragma pack(1) struct members.
+		memcpy(&x, &lx, sizeof(templateType));
+		memcpy(&y, &ly, sizeof(templateType));
+		memcpy(&z, &lz, sizeof(templateType));
 		return true;
 	}
 
@@ -1373,19 +1364,24 @@ namespace RakNet
 		if (!Read(cz))
 			return false;
 
-		// Calculate w from x,y,z
-		x=(templateType)(cx/65535.0);
-		y=(templateType)(cy/65535.0);
-		z=(templateType)(cz/65535.0);
-		if (cxNeg) x=-x;
-		if (cyNeg) y=-y;
-		if (czNeg) z=-z;
-		float difference = 1.0f - x*x - y*y - z*z;
+		// Calculate w from x,y,z using aligned locals
+		templateType lx = (templateType)(cx/65535.0);
+		templateType ly = (templateType)(cy/65535.0);
+		templateType lz = (templateType)(cz/65535.0);
+		if (cxNeg) lx = -lx;
+		if (cyNeg) ly = -ly;
+		if (czNeg) lz = -lz;
+		float difference = 1.0f - (float)(lx*lx) - (float)(ly*ly) - (float)(lz*lz);
 		if (difference < 0.0f)
-			difference=0.0f;
-		w = (templateType)(sqrt(difference));
+			difference = 0.0f;
+		templateType lw = (templateType)(sqrt(difference));
 		if (cwNeg)
-			w=-w;
+			lw = -lw;
+
+		memcpy(&w, &lw, sizeof(templateType));
+		memcpy(&x, &lx, sizeof(templateType));
+		memcpy(&y, &ly, sizeof(templateType));
+		memcpy(&z, &lz, sizeof(templateType));
 		return true;
 	}
 

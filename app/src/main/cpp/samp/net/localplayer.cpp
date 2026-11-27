@@ -705,16 +705,19 @@ void CLocalPlayer::SendOnFootFullSyncData()
 	ofSync.vecPos.y = matPlayer.pos.y;
 	ofSync.vecPos.z = matPlayer.pos.z;
 
-	ofSync.quat.SetFromMatrix(&matPlayer);
-	ofSync.quat.Normalize();
+	CQuaternion ofQuat, prevQuat;
+	ofQuat.SetFromMatrix(&matPlayer);
+	ofQuat.Normalize();
+	memcpy(&prevQuat, &m_ofSync.quat, sizeof(CQuaternion));
 
-	if (FloatOffset(ofSync.quat.w, m_ofSync.quat.w) < 0.00001 &&
-		FloatOffset(ofSync.quat.x, m_ofSync.quat.x) < 0.00001 &&
-		FloatOffset(ofSync.quat.y, m_ofSync.quat.y) < 0.00001 &&
-		FloatOffset(ofSync.quat.z, m_ofSync.quat.z) < 0.00001)
+	if (FloatOffset(ofQuat.w, prevQuat.w) < 0.00001 &&
+		FloatOffset(ofQuat.x, prevQuat.x) < 0.00001 &&
+		FloatOffset(ofQuat.y, prevQuat.y) < 0.00001 &&
+		FloatOffset(ofQuat.z, prevQuat.z) < 0.00001)
 	{
-		ofSync.quat.Set(m_ofSync.quat);
+		ofQuat.Set(prevQuat);
 	}
+	memcpy(&ofSync.quat, &ofQuat, sizeof(CQuaternion));
 
 	ofSync.byteHealth = (uint8_t)m_pPlayerPed->GetHealth();
 	ofSync.byteArmour = (uint8_t)m_pPlayerPed->GetArmour();

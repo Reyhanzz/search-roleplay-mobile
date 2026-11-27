@@ -66,7 +66,10 @@ void CRemotePlayer::Process()
 			m_byteUpdateFromNetwork == UPDATE_TYPE_ONFOOT &&
 			!m_pPlayerPed->IsInVehicle())
 		{
-			UpdateOnFootPositionAndSpeed(&m_ofSync.vecPos, &m_ofSync.vecMoveSpeed);
+			CVector ofPos, ofMove;
+			memcpy(&ofPos, &m_ofSync.vecPos, sizeof(CVector));
+			memcpy(&ofMove, &m_ofSync.vecMoveSpeed, sizeof(CVector));
+			UpdateOnFootPositionAndSpeed(&ofPos, &ofMove);
 			UpdateOnFootTargetPosition();
 
 			// UPDATE CURRENT WEAPON
@@ -207,11 +210,13 @@ void CRemotePlayer::Process()
             else
                 m_pPlayerPed->SetKeys(m_ofSync.lrAnalog, m_ofSync.udAnalog, m_ofSync.wKeys);
 
-			if (m_ofSync.vecMoveSpeed.x == 0.0f &&
-				m_ofSync.vecMoveSpeed.y == 0.0f &&
-				m_ofSync.vecMoveSpeed.z == 0.0f)
+			CVector curOfMove;
+			memcpy(&curOfMove, &m_ofSync.vecMoveSpeed, sizeof(CVector));
+			if (curOfMove.x == 0.0f &&
+				curOfMove.y == 0.0f &&
+				curOfMove.z == 0.0f)
 			{
-				m_pPlayerPed->m_pPed->SetVelocity(m_ofSync.vecMoveSpeed);
+				m_pPlayerPed->m_pPed->SetVelocity(curOfMove);
 			}
 
 			if ((GetTickCount() - m_dwLastRecvTick) > 1500) {
@@ -358,8 +363,11 @@ void CRemotePlayer::InterpolateAndRotate()
 		CQuaternion quatPlayer;
 		quatPlayer.SetFromMatrix(&matPlayer);
 
+		CQuaternion quatSync;
+		memcpy(&quatSync, &m_ofSync.quat, sizeof(CQuaternion));
+
 		CQuaternion quatResult;
-		quatResult.Slerp(&m_ofSync.quat, &quatPlayer, 0.75f);
+		quatResult.Slerp(&quatSync, &quatPlayer, 0.75f);
 		quatResult.GetMatrix(&matPlayer);
 
 		m_pPlayerPed->m_pPed->SetMatrix((CMatrix&)matPlayer);
@@ -1131,50 +1139,28 @@ void CRemotePlayer::ProcessSurfing()
 	if(pVehicleSurfing )
 	{
 		RwMatrix matEntity, matPlayer;
-		CVector vecMoveSpeed, vecTurnSpeed;
+		CVector surfOffsets;
+		memcpy(&surfOffsets, &m_ofSync.vecSurfOffsets, sizeof(CVector));
 
         matEntity = pVehicleSurfing->m_pVehicle->GetMatrix().ToRwMatrix();
-
-		/* unused ? */
-		vecMoveSpeed = m_pCurrentVehicle->m_pVehicle->GetMoveSpeed();
-		vecTurnSpeed = m_pCurrentVehicle->m_pVehicle->GetTurnSpeed();
-		/* unused ? */
-
         matPlayer = m_pPlayerPed->m_pPed->GetMatrix().ToRwMatrix();
 
-		ProjectMatrix((CVector*)&matPlayer.pos, (CMatrix*)&matEntity, (CVector*)&m_ofSync.vecSurfOffsets);
-
-		/*matPlayer.pos.x = matEntity.pos.x + m_ofSync.vecSurfOffsets.x;
-		matPlayer.pos.y = matEntity.pos.y + m_ofSync.vecSurfOffsets.y;
-		matPlayer.pos.z = matEntity.pos.z + m_ofSync.vecSurfOffsets.z;*/
+		ProjectMatrix((CVector*)&matPlayer.pos, (CMatrix*)&matEntity, &surfOffsets);
 
 		m_pPlayerPed->m_pPed->SetMatrix((CMatrix&)matPlayer);
-		//m_pPlayerPed->SetVelocity(vecMoveSpeed);
-		//m_pPlayerPed->SetTurnSpeedVector(vecTurnSpeed);
 	}
 	else if(pObjectSurfing)
 	{
 		RwMatrix matEntity, matPlayer;
-		CVector vecMoveSpeed, vecTurnSpeed;
+		CVector surfOffsets;
+		memcpy(&surfOffsets, &m_ofSync.vecSurfOffsets, sizeof(CVector));
 
         matEntity = pObjectSurfing->m_pEntity->GetMatrix().ToRwMatrix();
-
-		/* unused ? */
-		vecMoveSpeed = m_pCurrentVehicle->m_pVehicle->GetMoveSpeed();
-		vecTurnSpeed = m_pCurrentVehicle->m_pVehicle->GetTurnSpeed();
-		/* unused ? */
-
 		matPlayer = m_pPlayerPed->m_pPed->GetMatrix().ToRwMatrix();
 
-		ProjectMatrix((CVector*)&matPlayer.pos, (CMatrix*)&matEntity, (CVector*)&m_ofSync.vecSurfOffsets);
-
-		/*matPlayer.pos.x = matEntity.pos.x + m_ofSync.vecSurfOffsets.x;
-		matPlayer.pos.y = matEntity.pos.y + m_ofSync.vecSurfOffsets.y;
-		matPlayer.pos.z = matEntity.pos.z + m_ofSync.vecSurfOffsets.z;*/
+		ProjectMatrix((CVector*)&matPlayer.pos, (CMatrix*)&matEntity, &surfOffsets);
 
 		m_pPlayerPed->m_pPed->SetMatrix((CMatrix&)matPlayer);
-		//m_pPlayerPed->SetVelocity(vecMoveSpeed);
-		//m_pPlayerPed->SetTurnSpeedVector(vecTurnSpeed);
 	}
 }
 
@@ -1199,37 +1185,43 @@ void CRemotePlayer::StoreTrailerFullSyncData(TRAILER_SYNC_DATA *trSync)
 			}
 
 			RwMatrix matTrailer = pTrailer->m_pVehicle->GetMatrix().ToRwMatrix();
-			trSync->quat.GetMatrix(&matTrailer);
+			CQuaternion trQuat;
+			CVector trPos, trMove, trTurn;
+			memcpy(&trQuat, &trSync->quat, sizeof(CQuaternion));
+			memcpy(&trPos, &trSync->vecPos, sizeof(CVector));
+			memcpy(&trMove, &trSync->vecMoveSpeed, sizeof(CVector));
+			memcpy(&trTurn, &trSync->vecTurnSpeed, sizeof(CVector));
+			trQuat.GetMatrix(&matTrailer);
 
-			m_vecPosOffset.x = FloatOffset(trSync->vecPos.x, matTrailer.pos.x);
-			m_vecPosOffset.y = FloatOffset(trSync->vecPos.y, matTrailer.pos.y);
-			m_vecPosOffset.z = FloatOffset(trSync->vecPos.z, matTrailer.pos.z);
+			m_vecPosOffset.x = FloatOffset(trPos.x, matTrailer.pos.x);
+			m_vecPosOffset.y = FloatOffset(trPos.y, matTrailer.pos.y);
+			m_vecPosOffset.z = FloatOffset(trPos.z, matTrailer.pos.z);
 
 			if(m_vecPosOffset.x > 0.5f || m_vecPosOffset.y > 0.5f || m_vecPosOffset.z > 0.5f)
 			{
 				if(m_vecPosOffset.x > 6.0f || m_vecPosOffset.y > 6.0f || m_vecPosOffset.z > 3.0f)
 				{
-					matTrailer.pos.x = trSync->vecPos.x;
-					matTrailer.pos.y = trSync->vecPos.y;
-					matTrailer.pos.z = trSync->vecPos.z;
+					matTrailer.pos.x = trPos.x;
+					matTrailer.pos.y = trPos.y;
+					matTrailer.pos.z = trPos.z;
 
 					pTrailer->m_pVehicle->SetMatrix((CMatrix&)matTrailer);
-					pTrailer->m_pVehicle->SetVelocity(trSync->vecMoveSpeed);
-					pTrailer->m_pVehicle->SetTurnSpeed(trSync->vecTurnSpeed);
+					pTrailer->m_pVehicle->SetVelocity(trMove);
+					pTrailer->m_pVehicle->SetTurnSpeed(trTurn);
 				}
 				else
 				{
 					pTrailer->m_pVehicle->SetMatrix((CMatrix&)matTrailer);
-					pTrailer->m_pVehicle->SetTurnSpeed(trSync->vecTurnSpeed);
+					pTrailer->m_pVehicle->SetTurnSpeed(trTurn);
 
 					CVector vecMoveSpeed = pTrailer->m_pVehicle->GetMoveSpeed();
 
 					if(m_vecPosOffset.x > 0.050000001f)
-						vecMoveSpeed.x += (trSync->vecPos.x - matTrailer.pos.x) * 0.025f;
+						vecMoveSpeed.x += (trPos.x - matTrailer.pos.x) * 0.025f;
 					if(m_vecPosOffset.y > 0.050000001f)
-						vecMoveSpeed.y += (trSync->vecPos.y - matTrailer.pos.y) * 0.025f;
+						vecMoveSpeed.y += (trPos.y - matTrailer.pos.y) * 0.025f;
 					if(m_vecPosOffset.z > 0.050000001f)
-						vecMoveSpeed.z += (trSync->vecPos.z - matTrailer.pos.z) * 0.025f;
+						vecMoveSpeed.z += (trPos.z - matTrailer.pos.z) * 0.025f;
 
 					pTrailer->m_pVehicle->SetVelocity(vecMoveSpeed);
 				}
@@ -1260,54 +1252,59 @@ void CRemotePlayer::StoreUnoccupiedSyncData(UNOCCUPIED_SYNC_DATA *unocSync)
 	if(pVehicle && !pVehicle->HasADriver())
 	{
 		RwMatrix matWorld = pVehicle->m_pVehicle->GetMatrix().ToRwMatrix();
+		CVector unocDir, unocRoll, unocPos, unocMove, unocTurn;
+		memcpy(&unocDir, &unocSync->vecDirection, sizeof(CVector));
+		memcpy(&unocRoll, &unocSync->vecRoll, sizeof(CVector));
+		memcpy(&unocPos, &unocSync->vecPos, sizeof(CVector));
+		memcpy(&unocMove, &unocSync->vecMoveSpeed, sizeof(CVector));
+		memcpy(&unocTurn, &unocSync->vecTurnSpeed, sizeof(CVector));
 
-		DecompressNormalVector(&matWorld.up, unocSync->vecDirection);
-		DecompressNormalVector(&matWorld.right, unocSync->vecRoll);
+		DecompressNormalVector(&matWorld.up, unocDir);
+		DecompressNormalVector(&matWorld.right, unocRoll);
 
 		// if we're pretty already there.. no translation.
-		if( (FloatOffset(unocSync->vecPos.x,matWorld.pos.x) <= 0.1f) &&
-			(FloatOffset(unocSync->vecPos.y,matWorld.pos.y) <= 0.1f) &&
-			(FloatOffset(unocSync->vecPos.z,matWorld.pos.z) <= 0.1f) )
+		if( (FloatOffset(unocPos.x,matWorld.pos.x) <= 0.1f) &&
+			(FloatOffset(unocPos.y,matWorld.pos.y) <= 0.1f) &&
+			(FloatOffset(unocPos.z,matWorld.pos.z) <= 0.1f) )
 		{
 			return;
 		}
 
 		// if difference is over 8 units, direct translation
 		if( !pVehicle->m_pVehicle->IsAdded() ||
-			(FloatOffset(unocSync->vecPos.x,matWorld.pos.x) > 8.0f) ||
-			(FloatOffset(unocSync->vecPos.y,matWorld.pos.y) > 8.0f) ||
-			(FloatOffset(unocSync->vecPos.z,matWorld.pos.z) > 8.0f) ) {
+			(FloatOffset(unocPos.x,matWorld.pos.x) > 8.0f) ||
+			(FloatOffset(unocPos.y,matWorld.pos.y) > 8.0f) ||
+			(FloatOffset(unocPos.z,matWorld.pos.z) > 8.0f) ) {
 
-			matWorld.pos.x = unocSync->vecPos.x;
-			matWorld.pos.y = unocSync->vecPos.y;
-			matWorld.pos.z = unocSync->vecPos.z;
+			matWorld.pos.x = unocPos.x;
+			matWorld.pos.y = unocPos.y;
+			matWorld.pos.z = unocPos.z;
 
 			pVehicle->m_pVehicle->SetMatrix((CMatrix&)matWorld);
-			pVehicle->m_pVehicle->SetVelocity(unocSync->vecMoveSpeed);
-			pVehicle->m_pVehicle->SetTurnSpeed(unocSync->vecTurnSpeed);
+			pVehicle->m_pVehicle->SetVelocity(unocMove);
+			pVehicle->m_pVehicle->SetTurnSpeed(unocTurn);
 			return;
 		}
 
 		// gradually increase/decrease velocities towards the target
 		pVehicle->m_pVehicle->SetMatrix((CMatrix&)matWorld);							// rotation
-		pVehicle->m_pVehicle->SetVelocity(unocSync->vecMoveSpeed);	// move velocity
-		pVehicle->m_pVehicle->SetTurnSpeed(unocSync->vecTurnSpeed);	// turn velocity
+		pVehicle->m_pVehicle->SetVelocity(unocMove);	// move velocity
+		pVehicle->m_pVehicle->SetTurnSpeed(unocTurn);	// turn velocity
 
 		CVector vec = {0.0f, 0.0f, 0.0f};
         vec = pVehicle->m_pVehicle->GetMoveSpeed();
 
-		if( FloatOffset(unocSync->vecPos.x,matWorld.pos.x) > 0.05 ) {
-			vec.x += (unocSync->vecPos.x - matWorld.pos.x) * 0.05f;
+		if( FloatOffset(unocPos.x,matWorld.pos.x) > 0.05 ) {
+			vec.x += (unocPos.x - matWorld.pos.x) * 0.05f;
 		}
-		if( FloatOffset(unocSync->vecPos.y,matWorld.pos.y) > 0.05 ) {
-			vec.y += (unocSync->vecPos.y - matWorld.pos.y) * 0.05f;
+		if( FloatOffset(unocPos.y,matWorld.pos.y) > 0.05 ) {
+			vec.y += (unocPos.y - matWorld.pos.y) * 0.05f;
 		}
-		if( FloatOffset(unocSync->vecPos.z,matWorld.pos.z) > 0.05 ) {
-			vec.z += (unocSync->vecPos.z - matWorld.pos.z) * 0.05f;
+		if( FloatOffset(unocPos.z,matWorld.pos.z) > 0.05 ) {
+			vec.z += (unocPos.z - matWorld.pos.z) * 0.05f;
 		}
 
 		pVehicle->m_pVehicle->SetVelocity(vec);
-		//pVehicle->m_bRemoteUnocSync = true;
 	}
 	/*VEHICLEID vehicleId = unocSync->vehicleId;
 	if(vehicleId < 0 || vehicleId >= MAX_VEHICLES)
