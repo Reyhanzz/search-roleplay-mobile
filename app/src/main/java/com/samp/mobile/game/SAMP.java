@@ -14,8 +14,16 @@ import com.samp.mobile.game.ui.dialog.DialogManager;
 import com.samp.mobile.launcher.util.SharedPreferenceCore;
 import com.samp.mobile.launcher.util.SignatureChecker;
 
+import java.io.BufferedInputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 @Obfuscate
 public class SAMP extends GTASA implements CustomKeyboard.InputListener, HeightProvider.HeightListener {
     private static final String TAG = "SAMP";
@@ -27,8 +35,10 @@ public class SAMP extends GTASA implements CustomKeyboard.InputListener, HeightP
 
     private AttachEdit mAttachEdit;
     private LoadingScreen mLoadingScreen;
+    private final ExecutorService mModelDownloadExecutor = Executors.newFixedThreadPool(3);
 
     public native void sendDialogResponse(int i, int i2, int i3, byte[] str);
+    public native void onCustomModelDownloaded(int fileType, int crc, boolean success);
 
     public static SAMP getInstance() {
         return instance;
@@ -163,6 +173,135 @@ public class SAMP extends GTASA implements CustomKeyboard.InputListener, HeightP
         });
     }
 
+    public void downloadCustomModel(final int fileType, final int crc, final String urlStr, final String destPath)
+    {
+        if (urlStr == null || destPath == null || urlStr.isEmpty() || destPath.isEmpty()) {
+            notifyCustomModelDownloaded(fileType, crc, false);
+            return;
+        }
+        try {
+            mModelDownloadExecutor.execute(() -> {
+                boolean ok = false;
+                try {
+                    ok = performCustomModelHttpDownload(urlStr, destPath);
+                } catch (Throwable t) {
+                    Log.w(TAG, "0.3.DL HTTP download failed for " + urlStr + ": " + t.getMessage());
+                    ok = false;
+                } finally {
+                    notifyCustomModelDownloaded(fileType, crc, ok);
+                }
+            });
+        } catch (Throwable t) {
+            Log.w(TAG, "0.3.DL executor rejected download: " + t.getMessage());
+            notifyCustomModelDownloaded(fileType, crc, false);
+        }
+    }
+
+    private void notifyCustomModelDownloaded(int fileType, int crc, boolean success) {
+        try {
+            onCustomModelDownloaded(fileType, crc, success);
+        } catch (UnsatisfiedLinkError e) {
+            Log.e(TAG, "onCustomModelDownloaded link error: " + e.getMessage());
+        }
+    }
+
+    private boolean performCustomModelHttpDownload(String initialUrl, String destPath) {
+        final long MAX_BYTES = 64L * 1024L * 1024L;
+        final int MAX_REDIRECTS = 5;
+
+        String currentUrl = initialUrl.trim();
+        File destFile = new File(destPath);
+        File parent = destFile.getParentFile();
+        if (parent != null && !parent.exists()) {
+            parent.mkdirs();
+        }
+        File tmpFile = new File(destPath + ".tmp");
+
+        for (int redirect = 0; redirect <= MAX_REDIRECTS; redirect++) {
+            String lower = currentUrl.toLowerCase(java.util.Locale.US);
+            if (!lower.startsWith("http://") && !lower.startsWith("https://")) {
+                Log.w(TAG, "0.3.DL rejected non-HTTP URL: " + currentUrl);
+                return false;
+            }
+
+            HttpURLConnection conn = null;
+            try {
+                URL url = new URL(currentUrl);
+                conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("GET");
+                conn.setInstanceFollowRedirects(false);
+                conn.setConnectTimeout(15000);
+                conn.setReadTimeout(30000);
+                conn.setRequestProperty("User-Agent", "SAMP-0.3.DL-Mobile/1.0");
+                conn.connect();
+
+                int code = conn.getResponseCode();
+                if (code == HttpURLConnection.HTTP_MOVED_PERM
+                        || code == HttpURLConnection.HTTP_MOVED_TEMP
+                        || code == HttpURLConnection.HTTP_SEE_OTHER
+                        || code == 307 || code == 308) {
+                    String location = conn.getHeaderField("Location");
+                    if (location == null || location.isEmpty()) {
+                        return false;
+                    }
+                    URL nextUrl = new URL(url, location);
+                    currentUrl = nextUrl.toString();
+                    continue;
+                }
+
+                if (code != HttpURLConnection.HTTP_OK) {
+                    Log.w(TAG, "0.3.DL HTTP status " + code + " for " + currentUrl);
+                    return false;
+                }
+
+                long contentLength = conn.getContentLengthLong();
+                if (contentLength > MAX_BYTES) {
+                    Log.w(TAG, "0.3.DL file too large: " + contentLength);
+                    return false;
+                }
+
+                long totalRead = 0L;
+                try (InputStream in = new BufferedInputStream(conn.getInputStream());
+                     FileOutputStream out = new FileOutputStream(tmpFile, false)) {
+                    byte[] buf = new byte[16384];
+                    int n;
+                    while ((n = in.read(buf)) != -1) {
+                        totalRead += n;
+                        if (totalRead > MAX_BYTES) {
+                            Log.w(TAG, "0.3.DL stream exceeded max size");
+                            return false;
+                        }
+                        out.write(buf, 0, n);
+                    }
+                    out.flush();
+                }
+
+                if (totalRead <= 0) {
+                    if (tmpFile.exists()) tmpFile.delete();
+                    return false;
+                }
+
+                if (destFile.exists()) {
+                    destFile.delete();
+                }
+                if (!tmpFile.renameTo(destFile)) {
+                    if (tmpFile.exists()) tmpFile.delete();
+                    return false;
+                }
+                return true;
+            } catch (Throwable t) {
+                if (tmpFile.exists()) tmpFile.delete();
+                Log.w(TAG, "0.3.DL download error (" + currentUrl + "): " + t.getMessage());
+                return false;
+            } finally {
+                if (conn != null) {
+                    conn.disconnect();
+                }
+            }
+        }
+        return false;
+    }
+
     private void logJavaCrash(String stage, Throwable t) {
         try {
             java.io.File dir = getExternalFilesDir(null);
@@ -263,6 +402,7 @@ public class SAMP extends GTASA implements CustomKeyboard.InputListener, HeightP
     @Override
     public void onDestroy() {
         Log.i(TAG, "**** onDestroy");
+        mModelDownloadExecutor.shutdownNow();
         super.onDestroy();
     }
 

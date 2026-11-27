@@ -227,7 +227,7 @@ public final class SrpConfig {
         client.put("host", getServerIp());
         client.put("port", String.valueOf(getServerPort()));
         client.put("password", serverPassword == null ? "" : serverPassword);
-        client.put("version", "0.3.7");
+        client.put("version", "0.3.DL-R1");
         client.put("autoaim", s.autoAim ? "true" : "false");
 
         debug.put("debug", "false");

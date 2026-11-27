@@ -291,6 +291,7 @@ void CTextDraw::LoadTexture()
 }
 
 #include "Models/ModelInfo.h"
+#include "../net/custommodels.h"
 void CTextDraw::SnapshotProcess()
 {
     if (m_TextDrawData.dwStyle != 5 || m_TextDrawData.iTextureSlot != -1) {
@@ -299,23 +300,24 @@ void CTextDraw::SnapshotProcess()
 
     uintptr_t snapshot = 0;
     CVector offset = {0.0f, 0.0f, 0.0f};
+    int32_t resolvedModel = CCustomModels::ResolveTextDrawModelId(m_TextDrawData.wModelID);
     // PED MODEL
-    if (IsValidPedModel(m_TextDrawData.wModelID))
+    if (resolvedModel >= 0 && IsValidPedModel(static_cast<uint>(resolvedModel)))
     {
         /*if (!IsExistinfoForModel(m_TextDrawData.wModelID))
             m_TextDrawData.wModelID = 0;*/
 
         snapshot = (uintptr_t)pSnapShotHelper->CreatePedSnapShot(
-                m_TextDrawData.wModelID,
+                resolvedModel,
                 m_TextDrawData.dwBackgroundColor,
                 &m_TextDrawData.vecRot,
                 m_TextDrawData.fZoom);
     }
         // VEHICLE MODEL
-    else if (m_TextDrawData.wModelID >= 400 && m_TextDrawData.wModelID <= 611 || m_TextDrawData.wModelID >= 12500 && m_TextDrawData.wModelID <= 12799)
+    else if (resolvedModel >= 400 && resolvedModel <= 611 || resolvedModel >= 12500 && resolvedModel <= 12799)
     {
         snapshot = (uintptr_t)pSnapShotHelper->CreateVehicleSnapShot(
-                m_TextDrawData.wModelID,
+                resolvedModel,
                 m_TextDrawData.dwBackgroundColor,
                 &m_TextDrawData.vecRot,
                 m_TextDrawData.fZoom,
@@ -327,10 +329,10 @@ void CTextDraw::SnapshotProcess()
 
     else
     {
-        if (!CModelInfo::GetModelInfo(m_TextDrawData.wModelID))
-            m_TextDrawData.wModelID = 18631;
+        if (resolvedModel < 0 || resolvedModel >= TOTAL_DFF_MODEL_IDS || !CModelInfo::GetModelInfo(resolvedModel))
+            resolvedModel = 18631;
         snapshot = (uintptr_t)pSnapShotHelper->CreateObjectSnapShot(
-                m_TextDrawData.wModelID,
+                resolvedModel,
                 m_TextDrawData.dwBackgroundColor,
                 &m_TextDrawData.vecRot,
                 m_TextDrawData.fZoom

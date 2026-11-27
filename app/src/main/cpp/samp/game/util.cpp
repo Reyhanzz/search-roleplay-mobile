@@ -1927,10 +1927,12 @@ int GetVehicleSubtype(CVehicleGTA* pGtaVehicle)
 }
 
 #include "Models/ModelInfo.h"
+#include "../net/custommodels.h"
 uintptr_t GetModelInfoByID(int iModelID)
 {
-	if (iModelID < 0 || iModelID > 20000) {
-		return false;
+	iModelID = CCustomModels::ResolveModelId(iModelID);
+	if (iModelID < 0 || iModelID >= TOTAL_DFF_MODEL_IDS) {
+		return 0;
 	}
 
 	uintptr_t *dwModelArray = reinterpret_cast<uintptr_t *>(CModelInfo::ms_modelInfoPtrs);
@@ -1961,7 +1963,10 @@ int GetModelRefCounts(int iModel)
 // 0.3.7
 bool IsValidPedModel(uint modelID)
 {
-    if(modelID < 0 || modelID > 20000) return false;
+    if (CCustomModels::IsCustomPedModel(static_cast<int32_t>(modelID)))
+        return true;
+
+    if (modelID >= TOTAL_DFF_MODEL_IDS) return false;
     auto dwModelArray = CModelInfo::ms_modelInfoPtrs;
 
     uintptr_t ModelInfo = reinterpret_cast<uintptr_t>(dwModelArray[modelID]);

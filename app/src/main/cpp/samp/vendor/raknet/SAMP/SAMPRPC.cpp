@@ -150,3 +150,12 @@ int RPC_ScrPlayAudioStream = 41;
 int RPC_ScrStopAudioStream = 42;
 int RPC_ScrAttachCameraToObject = 81;
 int RPC_SetPlayerSkillLevel = 34;
+
+// SA-MP 0.3.DL custom model & virtual world RPCs
+int RPC_SetPlayerVirtualWorld = 48;
+int RPC_ModelInfo = 179;
+int RPC_RequestDffFile = 181;
+int RPC_RequestTxdFile = 182;
+int RPC_ModelFile = 183;
+int RPC_FinishedDownloading = 184;
+int RPC_SrcFinishedDownloading = 185;

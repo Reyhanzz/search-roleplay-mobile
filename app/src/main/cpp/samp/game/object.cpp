@@ -1,6 +1,7 @@
 #include "../main.h"
 #include "game.h"
 #include "../net/netgame.h"
+#include "../net/custommodels.h"
 
 #include "RW/RenderWare.h"
 #include "Streaming.h"
@@ -14,7 +15,8 @@ extern MaterialTextGenerator* pMaterialTextGenerator;
 
 CObject::CObject(int iModel, CVector vecPos, CVector vecRot, float fDrawDistance, uint8_t bAttached)
 {
-    if(!CModelInfo::GetModelInfo(iModel))
+    iModel = CCustomModels::ResolveObjectModelId(iModel);
+    if(iModel < 0 || iModel >= TOTAL_DFF_MODEL_IDS || !CModelInfo::GetModelInfo(iModel))
         iModel = 18631; // ????????
 
 	m_AttachedVehicleID = INVALID_VEHICLE_ID;
@@ -80,8 +82,11 @@ CObject::CObject(int iModel, CVector vecPos, CVector vecRot, float fDrawDistance
 CObject::~CObject()
 {
     if(m_pEntity)
+    {
+        auto modelIdx = m_pEntity->m_nModelIndex;
         ScriptCommand(&destroy_object, m_dwGTAId);
-    CStreaming::RemoveModelIfNoRefs(m_pEntity->m_nModelIndex);
+        CStreaming::RemoveModelIfNoRefs(modelIdx);
+    }
 
 	for (int i = 0; i < 16; i++)
 	{

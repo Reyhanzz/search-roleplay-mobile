@@ -1,6 +1,7 @@
 #include "../main.h"
 #include "../game/game.h"
 #include "netgame.h"
+#include "custommodels.h"
 #include "../gui/gui.h"
 #include "../audiostream.h"
 
@@ -64,6 +65,7 @@ CNetGame::CNetGame(const char* szHostOrIp, int iPort, const char *szPlayerName, 
 
 	m_pRakClient = RakNetworkFactory::GetRakClientInterface();
 	InitializePools();
+	CCustomModels::Init(m_szHostOrIp, m_iPort);
 
 	GetPlayerPool()->SetLocalPlayerName(szPlayerName);
 
@@ -102,13 +104,15 @@ CNetGame::CNetGame(const char* szHostOrIp, int iPort, const char *szPlayerName, 
     if(pSettings)
         sampVer = pSettings->Get().szVersion;
 
-	if (pUI) pUI->chat()->addDebugMessage("{FFFFFF}2.1 Client started", sampVer);
+	if (pUI) pUI->chat()->addDebugMessage("{FFFFFF}2.1 Client started (%s)", sampVer);
 }
 // 0.3.7
 CNetGame::~CNetGame()
 {
 	// voice
 	//Network::OnRaknetDisconnect();
+
+	CCustomModels::Reset();
 
 	m_pRakClient->Disconnect(0);
 	UnregisterRPCs(m_pRakClient);
@@ -212,6 +216,7 @@ void CNetGame::Process()
 		time = GetTickCount();
 		bProcess = true;
 	}
+	CCustomModels::Process(m_pRakClient);
 	if (m_pNetSet->byteHoldTime) {
 		pGame->SetWorldTime(m_pNetSet->byteWorldTime_Hour, m_pNetSet->byteWorldTime_Minute);
 	}
@@ -424,6 +429,7 @@ void CNetGame::ShutdownForGameModeRestart()
 	ResetPickupPool();
 	ResetObjectPool();
 	ResetMenuPool();
+	CCustomModels::Init(m_szHostOrIp, m_iPort);
 
 	m_pNetSet->bDisableInteriorEnterExits = false;
 	m_pNetSet->fNameTagDrawDistance = 70.0f;
@@ -575,7 +581,10 @@ void CNetGame::Packet_ConnectionSucceeded(Packet *pkt)
 	RakNet::BitStream bsSuccAuth(pkt->data, pkt->length, true);
 	PLAYERID MyPlayerID;
 	unsigned int uiChallenge;
-	int iVersion = 4057;
+	const char* szClientVersion = (pSettings && pSettings->Get().szVersion[0] != '\0')
+		? pSettings->Get().szVersion : SAMP_VERSION;
+	int iVersion = (strncmp(szClientVersion, "0.3.DL", 6) == 0)
+		? NETGAME_VERSION_03DL : NETGAME_VERSION_037;
 	uint8_t byteMod = 1;
 
 	bsSuccAuth.IgnoreBits(8);	// packetId
@@ -592,9 +601,7 @@ void CNetGame::Packet_ConnectionSucceeded(Packet *pkt)
 
 	uint8_t byteNameLen = strlen(GetPlayerPool()->GetLocalPlayerName());
 	uint8_t byteAuthBSLen = strlen(AUTH_BS);
-	uint8_t byteClientVerLen = strlen(SAMP_VERSION);
-    if(pSettings)
-        byteClientVerLen = strlen(pSettings->Get().szVersion);
+	uint8_t byteClientVerLen = strlen(szClientVersion);
 
 
 	RakNet::BitStream bsSend;
@@ -606,11 +613,7 @@ void CNetGame::Packet_ConnectionSucceeded(Packet *pkt)
 	bsSend.Write(byteAuthBSLen);
 	bsSend.Write(AUTH_BS, byteAuthBSLen);
 	bsSend.Write(byteClientVerLen);
-	//bsSend.Write(SAMP_VERSION, byteClientVerLen);
-    if(pSettings)
-        bsSend.Write(pSettings->Get().szVersion, byteClientVerLen);
-    else
-        bsSend.Write(SAMP_VERSION, byteClientVerLen);
+	bsSend.Write(szClientVersion, byteClientVerLen);
 
 	Network::OnRaknetRpc(RPC_ClientJoin, bsSend);
 

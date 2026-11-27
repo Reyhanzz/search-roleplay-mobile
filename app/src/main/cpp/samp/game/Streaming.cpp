@@ -10,6 +10,7 @@
 #include "TxdStore.h"
 #include "game.h"
 #include "net/netgame.h"
+#include "net/custommodels.h"
 #include "game/Collision/ColStore.h"
 #include "IplStore.h"
 #include "Camera.h"
@@ -23,6 +24,12 @@ extern UI *pUI;
 
 bool CStreaming::TryLoadModel(int modelId) {
     FLog("TryLoadModel %d", modelId);
+    if (modelId < 0 || modelId >= RESOURCE_ID_TOTAL) {
+        return false;
+    }
+    if (CCustomModels::IsCustomSlot(modelId)) {
+        return CCustomModels::EnsureSlotLoaded(modelId);
+    }
     if(!CStreaming::GetInfo(modelId).IsLoaded()) {
         FLog("TryLoadModel 1");
         CStreaming::RequestModel(modelId, STREAMING_GAME_REQUIRED | STREAMING_KEEP_IN_MEMORY);
@@ -97,6 +104,8 @@ void CStreaming::SetModelIsDeletable(int32 modelId) {
 
 void CStreaming::RemoveModel(int32 modelId) {
     if(modelId == MODEL_MALE01)
+        return;
+    if (modelId < 0 || modelId >= RESOURCE_ID_TOTAL || CCustomModels::IsCustomSlot(modelId))
         return;
 
     CStreamingInfo& streamingInfo = GetInfo(modelId);
@@ -270,6 +279,13 @@ void CStreaming::InitImageList() {
 // Request a given model to be loaded.
 // Can be called on an already requested model to add `PRIORITY_REQUEST` flag
 void CStreaming::RequestModel(int32 modelId, int32 streamingFlags) {
+    if (modelId < 0 || modelId >= RESOURCE_ID_TOTAL) {
+        return;
+    }
+    if (CCustomModels::IsCustomSlot(modelId)) {
+        CCustomModels::EnsureSlotLoaded(modelId);
+        return;
+    }
     CStreamingInfo& info = GetInfo(modelId);
 
     switch (info.m_nLoadState) {

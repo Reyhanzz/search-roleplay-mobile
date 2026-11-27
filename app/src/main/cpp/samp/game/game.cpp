@@ -9,6 +9,7 @@
 #include "TxdStore.h"
 #include "VisibilityPlugins.h"
 #include "net/netgame.h"
+#include "net/custommodels.h"
 #include "CrossHair.h"
 #include "Pickups.h"
 #include "game/Models/ModelInfo.h"
@@ -318,8 +319,9 @@ uint32_t CGame::CreatePickup(int iModel, int iType, float x, float y, float z, i
 {
     uintptr hnd;
 
+    iModel = CCustomModels::ResolveObjectModelId(iModel);
     auto dwModelArray = CModelInfo::ms_modelInfoPtrs;
-    if(dwModelArray[iModel] == nullptr)
+    if(iModel < 0 || iModel >= TOTAL_DFF_MODEL_IDS || dwModelArray[iModel] == nullptr)
         iModel = 18631; // вопросик
 
     ScriptCommand(&create_pickup, iModel, iType, x, y, z, &hnd);
@@ -356,6 +358,9 @@ void CGame::LoadRequestedModels()
 // 0.3.7
 void CGame::RemoveModel(int iModel, bool bFromStreaming)
 {
+	if (CCustomModels::IsCustomSlot(iModel))
+		return;
+
 	if (iModel >= 0 && iModel < 20000)
 	{
 		if (bFromStreaming)

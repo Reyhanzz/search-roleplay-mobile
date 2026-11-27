@@ -154,3 +154,12 @@ extern int RPC_SetPlayerSkillLevel;
 extern int RPC_EditObject;
 extern int RPC_EditAttachedObject;
 extern int RPC_EnterEditObject;
+
+// SA-MP 0.3.DL custom model & virtual world RPCs
+extern int RPC_SetPlayerVirtualWorld;
+extern int RPC_ModelInfo;
+extern int RPC_RequestDffFile;
+extern int RPC_RequestTxdFile;
+extern int RPC_ModelFile;
+extern int RPC_FinishedDownloading;
+extern int RPC_SrcFinishedDownloading;

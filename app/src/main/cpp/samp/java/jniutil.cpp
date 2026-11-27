@@ -32,6 +32,11 @@ CJavaWrapper::CJavaWrapper(JNIEnv *env, jobject activity)
 
     s_showEditObject = env->GetMethodID(clas, "showEditObject", "()V");
     s_hideEditObject = env->GetMethodID(clas, "hideEditObject", "()V");
+    s_downloadCustomModel = env->GetMethodID(clas, "downloadCustomModel", "(IILjava/lang/String;Ljava/lang/String;)V");
+    if (env->ExceptionCheck()) {
+        env->ExceptionClear();
+        s_downloadCustomModel = nullptr;
+    }
 
     env->DeleteLocalRef(clas);
 }
@@ -190,4 +195,52 @@ void CJavaWrapper::HideEditObject() {
     }
 
     env->CallVoidMethod(this->activity, this->s_hideEditObject);
+}
+
+bool CJavaWrapper::DownloadCustomModel(int fileType, uint32_t crc, const char* url, const char* destPath) {
+    if (!s_downloadCustomModel || !url || !destPath || !javaVM) {
+        return false;
+    }
+
+    JNIEnv* env = nullptr;
+    bool attached = false;
+    jint envStat = javaVM->GetEnv((void**)&env, JNI_VERSION_1_6);
+    if (envStat == JNI_EDETACHED) {
+        if (javaVM->AttachCurrentThread(&env, nullptr) != 0 || !env) {
+            return false;
+        }
+        attached = true;
+    } else if (envStat != JNI_OK || !env) {
+        return false;
+    }
+
+    jstring jUrl = env->NewStringUTF(url);
+    jstring jDest = env->NewStringUTF(destPath);
+    if (!jUrl || !jDest) {
+        if (jUrl) env->DeleteLocalRef(jUrl);
+        if (jDest) env->DeleteLocalRef(jDest);
+        if (env->ExceptionCheck()) env->ExceptionClear();
+        if (attached) javaVM->DetachCurrentThread();
+        return false;
+    }
+
+    env->CallVoidMethod(this->activity, this->s_downloadCustomModel,
+                        static_cast<jint>(fileType),
+                        static_cast<jint>(crc),
+                        jUrl,
+                        jDest);
+
+    bool ok = true;
+    if (env->ExceptionCheck()) {
+        env->ExceptionDescribe();
+        env->ExceptionClear();
+        ok = false;
+    }
+
+    env->DeleteLocalRef(jUrl);
+    env->DeleteLocalRef(jDest);
+    if (attached) {
+        javaVM->DetachCurrentThread();
+    }
+    return ok;
 }

@@ -56,8 +56,8 @@ void CSnapShotHelper::SetUpScene()
 // 0.3.7
 RwTexture* CSnapShotHelper::CreateObjectSnapShot(int iModel, uint32_t dwColor, CVector* vecRot, float fZoom)
 {
-    if (iModel > 20000) {
-        FLog("Snapshot: model %d too big, abort", iModel);
+    if (iModel < 0 || iModel >= TOTAL_DFF_MODEL_IDS) {
+        FLog("Snapshot: model %d out of range, abort", iModel);
         return nullptr;
     }
 
@@ -89,8 +89,8 @@ RwTexture* CSnapShotHelper::CreateObjectSnapShot(int iModel, uint32_t dwColor, C
         return nullptr;
     }
     auto pModelInfo = CModelInfo::GetModelInfo(iModel);
-    float fRadius = pModelInfo->m_pColModel->GetBoundRadius();
-    CVector vecCenter = pModelInfo->m_pColModel->GetBoundCenter();
+    float fRadius = (pModelInfo && pModelInfo->m_pColModel) ? pModelInfo->m_pColModel->GetBoundRadius() : 1.0f;
+    CVector vecCenter = (pModelInfo && pModelInfo->m_pColModel) ? pModelInfo->m_pColModel->GetBoundCenter() : CVector{0.0f, 0.0f, 0.0f};
 
     RwFrame* parent = static_cast<RwFrame*>(pRwObject->parent);
     if (!parent) {

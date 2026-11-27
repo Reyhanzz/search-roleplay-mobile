@@ -24,7 +24,9 @@ extern char* g_pszStorage;
 #define ARRAY_SIZE(a) ( sizeof((a)) / sizeof(*(a)) )
 #endif
 
-#define SAMP_VERSION	"0.3.7"
+#define SAMP_VERSION	"0.3.DL-R1"
+#define NETGAME_VERSION_037		4057
+#define NETGAME_VERSION_03DL	4062
 
 #define SAMP_ARCHIVE_PATH "/Android/data/com.searchroleplay.mobile/samp.data"
 #define FONT_NAME "arial_bold.ttf"

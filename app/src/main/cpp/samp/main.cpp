@@ -5,6 +5,7 @@
 #include "main.h"
 #include "game/game.h"
 #include "net/netgame.h"
+#include "net/custommodels.h"
 #include "gui/gui.h"
 #include "playertags.h"
 #include "audiostream.h"
@@ -286,6 +287,14 @@ extern "C" {
 			if(pSettings->Get().iAndroidKeyboard)
 				pJavaWrapper->HideKeyboard();
 		}
+	}
+	JNIEXPORT void JNICALL Java_com_samp_mobile_game_SAMP_onCustomModelDownloaded(JNIEnv *pEnv, jobject thiz, jint fileType, jint crc, jboolean success)
+	{
+		CCustomModels::OnHttpDownloadFinished(
+			static_cast<uint8_t>(fileType),
+			static_cast<uint32_t>(crc),
+			success == JNI_TRUE
+		);
 	}
 	JNIEXPORT void JNICALL Java_com_samp_mobile_game_ui_dialog_DialogManager_sendDialogResponse(JNIEnv* pEnv, jobject thiz, jint i3, jint i, jint i2, jbyteArray str)
 	{

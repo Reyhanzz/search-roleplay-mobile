@@ -42,6 +42,7 @@ public:
 
 	void ShowEditObject();
 	void HideEditObject();
+	bool DownloadCustomModel(int fileType, uint32_t crc, const char* url, const char* destPath);
 
     jobject activity;
     jmethodID s_setPauseState;
@@ -57,4 +58,5 @@ public:
 	jmethodID s_exitGame;
 	jmethodID s_showEditObject;
 	jmethodID s_hideEditObject;
+	jmethodID s_downloadCustomModel;
 };

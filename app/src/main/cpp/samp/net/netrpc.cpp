@@ -1,6 +1,7 @@
 #include "../main.h"
 #include "../game/game.h"
 #include "netgame.h"
+#include "custommodels.h"
 #include "../gui/gui.h"
 #include "../vendor/encoding/encoding.h"
 #include "../settings.h"
@@ -1547,6 +1548,12 @@ void RegisterRPCs(RakClientInterface *pRakClient)
 	pRakClient->RegisterAsRemoteProcedureCall(&RPC_ShowActor, ShowActor);							// DONE
 	pRakClient->RegisterAsRemoteProcedureCall(&RPC_HideActor, HideActor);							// DONE
 	pRakClient->RegisterAsRemoteProcedureCall(&RPC_ChatBubble, ChatBubble);
+
+	// SA-MP 0.3.DL custom model & virtual world RPCs
+	pRakClient->RegisterAsRemoteProcedureCall(&RPC_SetPlayerVirtualWorld, CCustomModels::OnSetPlayerVirtualWorldRPC);
+	pRakClient->RegisterAsRemoteProcedureCall(&RPC_ModelInfo, CCustomModels::OnModelInfoRPC);
+	pRakClient->RegisterAsRemoteProcedureCall(&RPC_ModelFile, CCustomModels::OnModelFileRPC);
+	pRakClient->RegisterAsRemoteProcedureCall(&RPC_SrcFinishedDownloading, CCustomModels::OnSrcFinishedDownloadingRPC);
 }
 
 void UnregisterRPCs(RakClientInterface *pRakClient)
@@ -1594,4 +1601,9 @@ void UnregisterRPCs(RakClientInterface *pRakClient)
 	pRakClient->UnregisterAsRemoteProcedureCall(&RPC_ShowActor);
 	pRakClient->UnregisterAsRemoteProcedureCall(&RPC_HideActor);
 	pRakClient->UnregisterAsRemoteProcedureCall(&RPC_ChatBubble);
+
+	pRakClient->UnregisterAsRemoteProcedureCall(&RPC_SetPlayerVirtualWorld);
+	pRakClient->UnregisterAsRemoteProcedureCall(&RPC_ModelInfo);
+	pRakClient->UnregisterAsRemoteProcedureCall(&RPC_ModelFile);
+	pRakClient->UnregisterAsRemoteProcedureCall(&RPC_SrcFinishedDownloading);
 }

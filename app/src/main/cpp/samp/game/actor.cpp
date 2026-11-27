@@ -1,19 +1,21 @@
 #include "../main.h"
 #include "game.h"
 #include "Streaming.h"
+#include "../net/custommodels.h"
 
 extern CGame* pGame;
 
 // 0.3.7
 CActor::CActor(int iSkin, float fX, float fY, float fZ, float fAngle)
 {
-    if (!CStreaming::TryLoadModel(iSkin))
-        throw std::runtime_error("Model not loaded");
-
+    iSkin = CCustomModels::ResolvePedModelId(iSkin);
     if (!IsValidPedModel(iSkin))
     {
         iSkin = 0;
     }
+
+    if (!CStreaming::TryLoadModel(iSkin))
+        throw std::runtime_error("Model not loaded");
 
     ScriptCommand(&create_actor, 5, iSkin, fX, fY, fZ, &m_dwGTAId);
 

@@ -1,6 +1,7 @@
 #include "../main.h"
 #include "game.h"
 #include "../net/netgame.h"
+#include "../net/custommodels.h"
 #include "../vendor/armhook/patch.h"
 #include <cmath>
 // 0.3.7
@@ -509,7 +510,10 @@ void CPlayerPed::RestartIfWastedAt(CVector *vecRestart, float fRotation)
 
 bool IsPedModel(unsigned int iModelID)
 {
-    if(iModelID < 0 || iModelID > 20000) return false;
+    if (CCustomModels::IsCustomPedModel(static_cast<int32_t>(iModelID)))
+        return true;
+
+    if(iModelID >= TOTAL_DFF_MODEL_IDS) return false;
     auto dwModelArray = CModelInfo::ms_modelInfoPtrs;
 
     uintptr_t ModelInfo = reinterpret_cast<uintptr_t>(dwModelArray[iModelID]);
@@ -522,6 +526,7 @@ bool IsPedModel(unsigned int iModelID)
 void CPlayerPed::SetModelIndex(uint uiModel)
 {
     if(!GamePool_Ped_GetAt(m_dwGTAId)) return;
+    uiModel = static_cast<uint>(CCustomModels::ResolvePedModelId(static_cast<int32_t>(uiModel)));
     if(!IsPedModel(uiModel))
         uiModel = 0;
 
@@ -2258,8 +2263,10 @@ void CPlayerPed::AttachObject(ATTACHED_OBJECT_INFO* pInfo, int iSlot)
 
     CVector vecPos = m_pPed->GetPosition();
     CVector vecRot{ 0.0f, 0.0f, 0.0f };
-    attach.pObject = new CObject(pInfo->dwModelId, vecPos, vecRot, 200.0f, 1);
-    attach.pObject->m_pEntity->m_bUsesCollision = false;
+    int iResolvedAttachModel = CCustomModels::ResolveObjectModelId(static_cast<int32_t>(pInfo->dwModelId));
+    attach.pObject = new CObject(iResolvedAttachModel, vecPos, vecRot, 200.0f, 1);
+    if (attach.pObject && attach.pObject->m_pEntity)
+        attach.pObject->m_pEntity->m_bUsesCollision = false;
 }
 
 void CPlayerPed::SetAttachOffset(int iSlot, CVector pos, CVector rot)
