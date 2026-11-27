@@ -37,7 +37,7 @@ namespace
 // ============================================================================
 constexpr size_t   kMaxModelFileSizeBytes   = 64u * 1024u * 1024u; // 64 MB safety cap
 constexpr size_t   kMaxConcurrentRequests   = 3;
-constexpr uint32_t kDownloadTimeoutMs       = 25000;
+constexpr uint32_t kDownloadTimeoutMs       = 90000;
 constexpr uint32_t kBatchIdleGraceMs        = 600;
 constexpr int      kMaxRetriesPerFile       = 1;
 constexpr int      kMaxEngineLoadsPerFrame  = 4;
@@ -489,8 +489,8 @@ RwTexture* CreateRwTextureFromRgba(const char* texName, const char* maskName, in
     int curH = height;
     std::vector<uint8_t> scaled;
 #if VER_x32
-    // Cap decoded 0.3.DL RGBA textures to 512x512 on 32-bit Android to prevent VRAM OOM on 2 GB devices.
-    constexpr int kMaxDim = 512;
+    // Cap decoded 0.3.DL RGBA textures to 256x256 on 32-bit Android so 200+ custom models stay well under 2 GB RAM/VRAM.
+    constexpr int kMaxDim = 256;
     while (curW > kMaxDim || curH > kMaxDim)
     {
         int nextW = std::max(1, curW / 2);

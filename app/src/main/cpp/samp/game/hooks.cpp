@@ -1748,49 +1748,32 @@ size_t OS_FileRead_hook(OSFile a1, void *buffer, size_t numBytes)
 
 void (*RLEDecompress)(uint8_t* pDest, size_t uiDestSize, uint8_t const* pSrc, size_t uiSegSize, uint32_t uiEscape);
 void RLEDecompress_hook(uint8_t* pDest, size_t uiDestSize, const uint8_t* pSrc, size_t uiSegSize, uint32_t uiEscape) {
-
     if (!pDest || !pSrc || uiDestSize == 0 || uiSegSize == 0) {
-        // Обработка некорректных входных данных или размеров
-        // Здесь можно сгенерировать исключение или вернуть код ошибки
         return;
     }
 
     const uint8_t* pTempSrc = pSrc;
+    uint8_t* pOut = pDest;
     const uint8_t* const pEndOfDest = pDest + uiDestSize;
-    const uint8_t* const pEndOfSrc = pSrc + dwRLEDecompressSourceSize; // Предполагается, что dwRLEDecompressSourceSize определено правильно
 
-    try {
-        while (pDest < pEndOfDest && pTempSrc < pEndOfSrc) {
-            if (*pTempSrc == uiEscape) {
-                if (pTempSrc + 1 >= pEndOfSrc || pTempSrc[1] == 0 || pTempSrc + 2 + uiSegSize > pEndOfSrc) {
-                    // Обработка ошибки, неверное значение ucCurSeg или недостаточно данных в исходном буфере
-                    throw std::runtime_error("rled error 1");
-                }
-
-                uint8_t ucCurSeg = pTempSrc[1];
-                while (ucCurSeg--) {
-                    if (pDest + uiSegSize > pEndOfDest) {
-                        // Обработка ошибки, недостаточно места в целевом буфере
-                        throw std::runtime_error("rled error 2");
-                    }
-                    memcpy(pDest, pTempSrc + 2, uiSegSize);
-                    pDest += uiSegSize;
-                }
-                pTempSrc += 2 + uiSegSize;
-            } else {
-                if (pDest + uiSegSize > pEndOfDest || pTempSrc + uiSegSize > pEndOfSrc) {
-                    // Обработка ошибки, недостаточно данных в исходном буфере или недостаточно места в целевом буфере
-                    throw std::runtime_error("rled error 3");
-                }
-                memcpy(pDest, pTempSrc, uiSegSize);
-                pDest += uiSegSize;
-                pTempSrc += uiSegSize;
+    while (pOut < pEndOfDest) {
+        if (*pTempSrc == uiEscape) {
+            uint8_t ucCurSeg = pTempSrc[1];
+            const uint8_t* segPtr = pTempSrc + 2;
+            pTempSrc += 2 + uiSegSize;
+            while (ucCurSeg-- && pOut < pEndOfDest) {
+                size_t copyLen = static_cast<size_t>(pEndOfDest - pOut);
+                if (copyLen > uiSegSize) copyLen = uiSegSize;
+                memcpy(pOut, segPtr, copyLen);
+                pOut += copyLen;
             }
+        } else {
+            size_t copyLen = static_cast<size_t>(pEndOfDest - pOut);
+            if (copyLen > uiSegSize) copyLen = uiSegSize;
+            memcpy(pOut, pTempSrc, copyLen);
+            pOut += copyLen;
+            pTempSrc += uiSegSize;
         }
-
-        dwRLEDecompressSourceSize = 0;
-    } catch (const std::exception& e) {
-        FLog("%s", e.what());
     }
 }
 

@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
   "apk": {
-    "version": "1.0.9",
-    "version_code": 109,
+    "version": "1.0.10",
+    "version_code": 110,
     "mandatory": true,
     "download_url": "https://github.com/Reyhanzz/search-roleplay-mobile/releases/latest/download/SearchRoleplayMobile.apk",
     "sha256": "",
     "changelog": [
-      "Fixed infinite _Unwind_Backtrace loop in CStackTrace (capped at 32 frames, stops on repeating PC, logs exact .so library + offset for PC/LR/backtrace) and added crash-handler re-entrancy guard",
-      "Hardened 0.3.DL custom model loader: strip mipmap raster flags for PowerVR GLES2 safety, guard m_nTxdIndex < 0, prevent re-entrant CustomTextureFindCB recursion, validate DFF chunk header, and log model ID before load",
-      "Upgraded View samp_log.txt viewer to 140 deduplicated lines with one-tap Copy button"
+      "Fixed critical PowerVR/GLES2 SIGSEGV in glDrawElements (GraphicsThread): CRQ_Commands::rqVertexBufferSelect was passing raw heap address (buffer + 8) to glBindBuffer instead of dereferencing ES2VertexBuffer::bufferId (*(GLuint*)(buffer + 8/12))",
+      "Fixed RLEDecompress_hook throwing fake rled error 3 on multi-block/concurrent texture reads that left GTA textures corrupted",
+      "Tuned 32-bit 0.3.DL custom texture cap to 256px and raised download timeout to 90s for large 28 MB custom TXDs on 2 GB RAM devices"
     ]
   },
   "remote_config": {

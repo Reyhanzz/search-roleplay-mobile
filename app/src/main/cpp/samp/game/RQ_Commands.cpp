@@ -101,19 +101,22 @@ void CRQ_Commands::rqVertexBufferSelect(uintptr_t **qData)
 {
     if (!qData || !*qData)
     {
-        glBindBuffer(0x8892, 0);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
         return;
     }
 
-    unsigned int buffer = *(*qData)++;
+    uintptr_t buffer = *(*qData)++;
 
     if (!buffer)
     {
-        glBindBuffer(0x8892, 0);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
         return;
     }
 
-    glBindBuffer(0x8892, buffer + 8);
+    // ES2VertexBuffer layout: vtable (uintptr_t) + size (uint32_t) + bufferId (GLuint).
+    // Verified against libGTASA.so: ARM32 offset +8 (0x1cb864), ARM64 offset +12 (0x260614).
+    const GLuint bufferId = *reinterpret_cast<const GLuint*>(buffer + (VER_x32 ? 8u : 12u));
+    glBindBuffer(GL_ARRAY_BUFFER, bufferId);
 
     ES2VertexBuffer::curCPUBuffer = nullptr;
 }
