@@ -83,8 +83,17 @@ public final class SrpI18n {
         put("upd_req_tag", "REQUIRED UPDATE %s", "UPDATE WAJIB %s");
         put("upd_opt_tag", "UPDATE %s AVAILABLE", "UPDATE %s TERSEDIA");
         put("btn_update", "Update", "Update");
+        put("btn_later", "Later", "Nanti");
+        put("btn_open_browser", "Download via Browser", "Unduh via Browser");
+        put("btn_open_settings", "Open Settings", "Buka Pengaturan");
         put("upd_checking", "Checking for mobile launcher updates...", "Mengecek pembaruan launcher mobile...");
         put("upd_latest", "You are on the latest version (%s).", "Sudah memakai versi terbaru (%s).");
+        put("upd_check_err", "Could not check updates. Verify internet connection and try again.", "Gagal mengecek update. Periksa koneksi internet lalu coba lagi.");
+        put("upd_dialog_title", "Update Available (%s)", "Update Tersedia (%s)");
+        put("upd_dialog_req_title", "Required Update (%s)", "Update Wajib (%s)");
+        put("upd_dialog_msg", "New version %s is ready.\nDo NOT uninstall the app so your GTA data stays safe.\n\nChanges:\n%s", "Versi baru %s sudah siap.\nJANGAN uninstall aplikasi agar data GTA tetap aman.\n\nPerubahan:\n%s");
+        put("upd_perm_title", "Allow App Install Permission", "Izinkan Install Aplikasi");
+        put("upd_perm_msg", "Android requires \"Install unknown apps\" permission for Search Roleplay before installing the update APK. Enable it in Settings, then return here.", "Android membutuhkan izin \"Install aplikasi tidak dikenal\" untuk Search Roleplay sebelum memasang APK update. Aktifkan di Pengaturan lalu kembali ke sini.");
         put("upd_downloading", "Downloading APK update (%d%%)...", "Mengunduh update APK (%d%%)...");
         put("upd_installing", "APK verified! Opening Android installer...", "APK terverifikasi! Membuka installer Android...");
         put("upd_err", "Update failed: %s", "Update gagal: %s");

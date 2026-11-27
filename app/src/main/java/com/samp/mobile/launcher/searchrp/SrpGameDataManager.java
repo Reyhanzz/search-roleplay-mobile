@@ -575,7 +575,13 @@ public final class SrpGameDataManager {
     public static File downloadApkUpdate(
             Context ctx, String apkUrl, String expectedSha256, AtomicBoolean cancelFlag, DownloadCallback cb)
             throws Exception {
-        File dlDir = new File(getGameFilesDir(ctx), "download");
+        // Clean legacy external APK file if present
+        File legacyApk = new File(new File(getGameFilesDir(ctx), "download"), "SearchRoleplayMobile_update.apk");
+        safeDelete(legacyApk);
+
+        // Store update APK in internal app cache (covered by FileProvider <cache-path>) so
+        // PackageInstaller on Android 11/12 Go can always read & parse it reliably.
+        File dlDir = new File(ctx.getCacheDir(), "updates");
         if (!dlDir.exists()) dlDir.mkdirs();
         File apkFile = new File(dlDir, "SearchRoleplayMobile_update.apk");
         safeDelete(apkFile);
@@ -584,6 +590,10 @@ public final class SrpGameDataManager {
         if (cancelFlag.get()) {
             safeDelete(apkFile);
             return null;
+        }
+        if (!apkFile.isFile() || apkFile.length() < 1_000_000L || !isValidZipMagic(apkFile)) {
+            safeDelete(apkFile);
+            throw new IOException("Downloaded file is not a valid APK package.");
         }
         if (expectedSha256 != null && !expectedSha256.trim().isEmpty()) {
             String actual = computeSha256(apkFile);
@@ -595,17 +605,52 @@ public final class SrpGameDataManager {
         return apkFile;
     }
 
-    public static void triggerApkInstall(Context ctx, File apkFile) {
+    private static boolean isValidZipMagic(File file) {
+        try (FileInputStream fis = new FileInputStream(file)) {
+            byte[] hdr = new byte[4];
+            if (fis.read(hdr) != 4) return false;
+            return hdr[0] == 'P' && hdr[1] == 'K' && hdr[2] == 3 && hdr[3] == 4;
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    public static void triggerApkInstall(Context ctx, File apkFile) throws Exception {
+        if (apkFile == null || !apkFile.isFile()) {
+            throw new IOException("APK file missing.");
+        }
         Uri uri;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             uri = FileProvider.getUriForFile(ctx, ctx.getPackageName() + ".provider", apkFile);
         } else {
             uri = Uri.fromFile(apkFile);
         }
+
         Intent intent = new Intent(Intent.ACTION_VIEW);
         intent.setDataAndType(uri, "application/vnd.android.package-archive");
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_GRANT_READ_URI_PERMISSION);
-        ctx.startActivity(intent);
+        intent.putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true);
+        intent.putExtra(Intent.EXTRA_RETURN_RESULT, false);
+
+        java.util.List<android.content.pm.ResolveInfo> handlers =
+                ctx.getPackageManager().queryIntentActivities(intent, android.content.pm.PackageManager.MATCH_DEFAULT_ONLY);
+        if (handlers != null) {
+            for (android.content.pm.ResolveInfo ri : handlers) {
+                if (ri.activityInfo != null && ri.activityInfo.packageName != null) {
+                    ctx.grantUriPermission(ri.activityInfo.packageName, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                }
+            }
+        }
+
+        try {
+            ctx.startActivity(intent);
+        } catch (Exception primaryErr) {
+            Intent fallback = new Intent(Intent.ACTION_INSTALL_PACKAGE);
+            fallback.setData(uri);
+            fallback.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            fallback.putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true);
+            ctx.startActivity(fallback);
+        }
     }
 
     public static String readTailLog(Context ctx, int maxLines) {

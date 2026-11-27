@@ -7,9 +7,11 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.provider.Settings;
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
 import android.widget.EditText;
@@ -50,6 +52,7 @@ public class SearchRpLauncherActivity extends AppCompatActivity {
     private static final long AUTO_REFRESH_MS = 30_000L;
     private static final int REQ_RECORD_AUDIO = 401;
     private static final int REQ_PICK_ZIP = 402;
+    private static final int REQ_INSTALL_UNKNOWN = 403;
 
     private SrpConfig cfg;
     private String lang = "en";
@@ -67,6 +70,8 @@ public class SearchRpLauncherActivity extends AppCompatActivity {
     private final AtomicBoolean cancelDlFlag = new AtomicBoolean(false);
     private SrpGameDataManager.CacheStatus cacheStatus = new SrpGameDataManager.CacheStatus();
     private SrpRemoteManifest.ApkUpdateInfo pendingApkUpdate = null;
+    private File pendingInstallApkFile = null;
+    private boolean hasPromptedUpdateDialog = false;
     private SrpRemoteManifest.AnnouncementInfo activeAnnouncement = null;
 
     // Header & Navigation
@@ -158,6 +163,13 @@ public class SearchRpLauncherActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         refreshCacheStatus();
+        if (pendingInstallApkFile != null && pendingInstallApkFile.isFile()) {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O || getPackageManager().canRequestPackageInstalls()) {
+                File apk = pendingInstallApkFile;
+                pendingInstallApkFile = null;
+                launchApkInstallerSafely(apk);
+            }
+        }
     }
 
     @Override
@@ -671,7 +683,7 @@ public class SearchRpLauncherActivity extends AppCompatActivity {
         if (isDownloading || isCheckingLock) return;
 
         if (pendingApkUpdate != null && pendingApkUpdate.mandatory) {
-            startApkUpdateDownload(pendingApkUpdate);
+            showApkUpdateDialog(pendingApkUpdate);
             return;
         }
 
@@ -796,6 +808,12 @@ public class SearchRpLauncherActivity extends AppCompatActivity {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == REQ_PICK_ZIP && resultCode == RESULT_OK && data != null && data.getData() != null) {
             startLocalZipImport(data.getData());
+        } else if (requestCode == REQ_INSTALL_UNKNOWN && pendingInstallApkFile != null && pendingInstallApkFile.isFile()) {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O || getPackageManager().canRequestPackageInstalls()) {
+                File apk = pendingInstallApkFile;
+                pendingInstallApkFile = null;
+                launchApkInstallerSafely(apk);
+            }
         }
     }
 
@@ -946,7 +964,7 @@ public class SearchRpLauncherActivity extends AppCompatActivity {
             SrpRemoteManifest.ManifestBundle bundle = SrpRemoteManifest.fetch();
             mainHandler.post(() -> {
                 if (bundle == null) {
-                    if (manualCheck) toast(t("upd_latest", "v" + BuildConfig.VERSION_NAME));
+                    if (manualCheck) toast(t("upd_check_err"));
                     return;
                 }
                 boolean ipChanged = false;
@@ -982,6 +1000,10 @@ public class SearchRpLauncherActivity extends AppCompatActivity {
                     if (manualCheck) toast(t("upd_latest", "v" + BuildConfig.VERSION_NAME));
                 }
                 renderNoticeBanner();
+                if (pendingApkUpdate != null && (manualCheck || !hasPromptedUpdateDialog)) {
+                    hasPromptedUpdateDialog = true;
+                    showApkUpdateDialog(pendingApkUpdate);
+                }
                 if (ipChanged) {
                     refreshServerStatus(true);
                 }
@@ -1020,6 +1042,31 @@ public class SearchRpLauncherActivity extends AppCompatActivity {
         }
     }
 
+    private void showApkUpdateDialog(SrpRemoteManifest.ApkUpdateInfo info) {
+        if (info == null || isFinishing() || isDestroyed()) return;
+        String verTag = info.version.startsWith("v") ? info.version : "v" + info.version;
+        StringBuilder cl = new StringBuilder();
+        if (info.changelog.isEmpty()) {
+            cl.append("- Bug fixes & stability improvements");
+        } else {
+            for (String line : info.changelog) {
+                cl.append("- ").append(line).append("\n");
+            }
+        }
+        AlertDialog.Builder b = new AlertDialog.Builder(this)
+                .setTitle(t(info.mandatory ? "upd_dialog_req_title" : "upd_dialog_title", verTag))
+                .setMessage(t("upd_dialog_msg", verTag, cl.toString().trim()))
+                .setCancelable(!info.mandatory)
+                .setPositiveButton(t("btn_update"), (d, w) -> startApkUpdateDownload(info));
+        if (!info.downloadUrl.isEmpty()) {
+            b.setNeutralButton(t("btn_open_browser"), (d, w) -> openUrl(info.downloadUrl));
+        }
+        if (!info.mandatory) {
+            b.setNegativeButton(t("btn_later"), null);
+        }
+        b.show();
+    }
+
     private void startApkUpdateDownload(SrpRemoteManifest.ApkUpdateInfo info) {
         if (info == null || info.downloadUrl.isEmpty() || isDownloading) return;
         isDownloading = true;
@@ -1053,8 +1100,7 @@ public class SearchRpLauncherActivity extends AppCompatActivity {
                     panelDownload.setVisibility(View.GONE);
                     updatePlayAndDataUi();
                     if (apk != null && apk.isFile()) {
-                        toast(t("upd_installing"));
-                        SrpGameDataManager.triggerApkInstall(SearchRpLauncherActivity.this, apk);
+                        installOrRequestPermission(apk);
                     }
                 });
             } catch (Exception e) {
@@ -1062,10 +1108,56 @@ public class SearchRpLauncherActivity extends AppCompatActivity {
                     isDownloading = false;
                     panelDownload.setVisibility(View.GONE);
                     updatePlayAndDataUi();
-                    toast(t("upd_err", e.getMessage() != null ? e.getMessage() : e.toString()));
+                    String err = e.getMessage() != null ? e.getMessage() : e.toString();
+                    new AlertDialog.Builder(SearchRpLauncherActivity.this)
+                            .setTitle("Search Roleplay")
+                            .setMessage(t("upd_err", err))
+                            .setPositiveButton(t("btn_open_browser"), (d, w) -> openUrl(info.downloadUrl))
+                            .setNegativeButton(t("btn_close"), null)
+                            .show();
                 });
             }
         });
+    }
+
+    private void installOrRequestPermission(File apk) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !getPackageManager().canRequestPackageInstalls()) {
+            pendingInstallApkFile = apk;
+            new AlertDialog.Builder(this)
+                    .setTitle(t("upd_perm_title"))
+                    .setMessage(t("upd_perm_msg"))
+                    .setPositiveButton(t("btn_open_settings"), (d, w) -> {
+                        try {
+                            Intent permIntent = new Intent(
+                                    Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                                    Uri.parse("package:" + getPackageName()));
+                            startActivityForResult(permIntent, REQ_INSTALL_UNKNOWN);
+                        } catch (Exception ex) {
+                            launchApkInstallerSafely(apk);
+                        }
+                    })
+                    .setNegativeButton(t("btn_close"), null)
+                    .show();
+            return;
+        }
+        launchApkInstallerSafely(apk);
+    }
+
+    private void launchApkInstallerSafely(File apk) {
+        try {
+            toast(t("upd_installing"));
+            SrpGameDataManager.triggerApkInstall(SearchRpLauncherActivity.this, apk);
+        } catch (Exception e) {
+            String err = e.getMessage() != null ? e.getMessage() : e.toString();
+            AlertDialog.Builder b = new AlertDialog.Builder(this)
+                    .setTitle("Search Roleplay")
+                    .setMessage(t("upd_err", err))
+                    .setNegativeButton(t("btn_close"), null);
+            if (pendingApkUpdate != null && !pendingApkUpdate.downloadUrl.isEmpty()) {
+                b.setPositiveButton(t("btn_open_browser"), (d, w) -> openUrl(pendingApkUpdate.downloadUrl));
+            }
+            b.show();
+        }
     }
 
     // ==================== HELPERS ====================

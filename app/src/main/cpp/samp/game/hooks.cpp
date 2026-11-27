@@ -929,10 +929,10 @@ CVector& FindPlayerSpeed_hook(int a1)
 	return FindPlayerSpeed(a1);
 }
 
-int (*RwFrameAddChild)(int a1, int a2);
-int RwFrameAddChild_hook(int a1, int a2)
+uintptr_t (*RwFrameAddChild)(uintptr_t a1, uintptr_t a2);
+uintptr_t RwFrameAddChild_hook(uintptr_t a1, uintptr_t a2)
 {
-	if(a1 == 0 || a2 == 0) return 0;
+	if (!a1 || !a2) return 0;
 	return RwFrameAddChild(a1, a2);
 }
 
@@ -959,11 +959,31 @@ int CTouchInterface__IsReleased_hook(int iWidgetId, int iUnk, int iEnableWidget)
 int (*CTextureDatabaseRuntime__GetEntry)(uintptr_t thiz, const char* a2, bool* a3);
 int CTextureDatabaseRuntime__GetEntry_hook(uintptr_t thiz, const char* a2, bool* a3)
 {
-	if (!thiz)
+	if (!thiz || !a2)
 	{
 		return -1;
 	}
 	return CTextureDatabaseRuntime__GetEntry(thiz, a2, a3);
+}
+
+void (*CTextureDatabaseRuntime__Register)(uintptr_t toRegister);
+void CTextureDatabaseRuntime__Register_hook(uintptr_t toRegister)
+{
+	if (!toRegister)
+	{
+		return;
+	}
+	CTextureDatabaseRuntime__Register(toRegister);
+}
+
+void (*CTextureDatabaseRuntime__Unregister)(uintptr_t toUnregister);
+void CTextureDatabaseRuntime__Unregister_hook(uintptr_t toUnregister)
+{
+	if (!toUnregister)
+	{
+		return;
+	}
+	CTextureDatabaseRuntime__Unregister(toUnregister);
 }
 
 uintptr_t (*CTxdStore__TxdStoreFindCB)(const char *a1);
@@ -1031,16 +1051,12 @@ int CCustomRoadsignMgr_RenderRoadsignAtomic_hook(int a1, int a2)
 		return CCustomRoadsignMgr_RenderRoadsignAtomic(a1, a2);
 }
 
-int (*_RwTextureDestroy)(int a1);
-int _RwTextureDestroy_hook(int a1)
+int (*_RwTextureDestroy)(uintptr_t a1);
+int _RwTextureDestroy_hook(uintptr_t a1)
 {
-	int result; // r0
-
-	if ( (unsigned int)(a1 + 1) >= 2 )
-		result = _RwTextureDestroy(a1);
-	else
-		result = 0;
-	return result;
+	if (a1 == 0 || a1 == static_cast<uintptr_t>(-1))
+		return 0;
+	return _RwTextureDestroy(a1);
 }
 
 int (*CPed_UpdatePosition)(CPedGTA* a1);
@@ -1892,6 +1908,13 @@ void InstallSpecialHooks()
     CHook::InstallPLT(g_libGTASA + (VER_x32 ? 0x6701D4 : 0x840708), &RLEDecompress_hook, &RLEDecompress);
 
     CHook::InlineHook("_Z11OS_FileReadPvS_i", &OS_FileRead_hook, &OS_FileRead);
+
+    // Prevent NULL TextureDatabaseRuntime entries from crashing TextureDatabaseRuntime::GetEntry / Register
+    CHook::InlineHook("_ZN22TextureDatabaseRuntime8GetEntryEPKcRb", &CTextureDatabaseRuntime__GetEntry_hook, &CTextureDatabaseRuntime__GetEntry);
+    CHook::InlineHook("_ZN22TextureDatabaseRuntime8RegisterEPS_", &CTextureDatabaseRuntime__Register_hook, &CTextureDatabaseRuntime__Register);
+    CHook::InlineHook("_ZN22TextureDatabaseRuntime10UnregisterEPS_", &CTextureDatabaseRuntime__Unregister_hook, &CTextureDatabaseRuntime__Unregister);
+    CHook::InlineHook("_Z16RwTextureDestroyP9RwTexture", &_RwTextureDestroy_hook, &_RwTextureDestroy);
+    CHook::InlineHook("_Z15RwFrameAddChildP7RwFrameS0_", &RwFrameAddChild_hook, &RwFrameAddChild);
 
 	CHook::InlineHook("_Z32_rxOpenGLDefaultAllInOneRenderCBP10RwResEntryPvhj", &rxOpenGLDefaultAllInOneRenderCB_hook, &rxOpenGLDefaultAllInOneRenderCB);
 	CHook::InlineHook("_ZN25CCustomBuildingDNPipeline18CustomPipeRenderCBEP10RwResEntryPvhj", &CCustomBuildingDNPipeline__CustomPipeRenderCB_hook, &CCustomBuildingDNPipeline__CustomPipeRenderCB);

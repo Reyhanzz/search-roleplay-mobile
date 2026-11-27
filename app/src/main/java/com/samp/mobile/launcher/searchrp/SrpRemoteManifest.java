@@ -47,44 +47,121 @@ public final class SrpRemoteManifest {
     }
 
     public static ManifestBundle fetch() {
-        JSONObject mobileJson = fetchJson(SrpConfig.MANIFEST_MOBILE_RAW);
-        if (mobileJson == null) {
-            mobileJson = fetchJson(SrpConfig.MANIFEST_MOBILE_RELEASE);
+        String bust = "?_t=" + System.currentTimeMillis();
+        JSONObject releaseJson = fetchJson(SrpConfig.MANIFEST_MOBILE_RELEASE);
+        JSONObject rawJson = fetchJson(SrpConfig.MANIFEST_MOBILE_RAW + bust);
+
+        ManifestBundle relBundle = releaseJson != null ? parseMobileManifest(releaseJson) : null;
+        ManifestBundle rawBundle = rawJson != null ? parseMobileManifest(rawJson) : null;
+
+        ManifestBundle best = pickBestBundle(relBundle, rawBundle);
+        if (best != null) {
+            return best;
         }
-        if (mobileJson != null) {
-            return parseMobileManifest(mobileJson);
+
+        // Fallback: GitHub Releases API directly (works even if manifest_mobile.json asset is missing)
+        ManifestBundle apiBundle = fetchFromGithubReleasesApi();
+        if (apiBundle != null) {
+            return apiBundle;
         }
+
         // Fallback: read shared server IP/links/announcement from PC repo manifest.json
-        JSONObject pcJson = fetchJson(SrpConfig.MANIFEST_PC_FALLBACK_RAW);
+        JSONObject pcJson = fetchJson(SrpConfig.MANIFEST_PC_FALLBACK_RAW + bust);
         if (pcJson != null) {
             return parseMobileManifest(pcJson);
         }
         return null;
     }
 
-    private static JSONObject fetchJson(String urlStr) {
-        HttpURLConnection conn = null;
-        try {
-            URL url = new URL(urlStr);
-            conn = (HttpURLConnection) url.openConnection();
-            conn.setConnectTimeout(7000);
-            conn.setReadTimeout(8000);
-            conn.setRequestProperty("User-Agent", "SearchRoleplayMobile/1.0");
-            conn.setRequestProperty("Cache-Control", "no-cache");
-            if (conn.getResponseCode() != 200) return null;
-
-            StringBuilder sb = new StringBuilder();
-            try (BufferedReader br = new BufferedReader(
-                    new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
-                String ln;
-                while ((ln = br.readLine()) != null) sb.append(ln);
-            }
-            return new JSONObject(sb.toString());
-        } catch (Exception ignored) {
-            return null;
-        } finally {
-            if (conn != null) conn.disconnect();
+    private static ManifestBundle pickBestBundle(ManifestBundle a, ManifestBundle b) {
+        if (a == null) return b;
+        if (b == null) return a;
+        int codeA = (a.apk != null) ? a.apk.versionCode : 0;
+        int codeB = (b.apk != null) ? b.apk.versionCode : 0;
+        if (codeB > codeA) return b;
+        if (codeA > codeB) return a;
+        if (a.apk != null && b.apk != null && compareSemver(b.apk.version, a.apk.version) > 0) {
+            return b;
         }
+        return a;
+    }
+
+    private static ManifestBundle fetchFromGithubReleasesApi() {
+        String apiUrl = "https://api.github.com/repos/" + SrpConfig.GITHUB_MOBILE_REPO + "/releases/latest";
+        JSONObject rel = fetchJson(apiUrl);
+        if (rel == null) return null;
+        String tag = rel.optString("tag_name", "").trim();
+        if (tag.isEmpty()) return null;
+
+        String apkUrl = "";
+        JSONArray assets = rel.optJSONArray("assets");
+        if (assets != null) {
+            for (int i = 0; i < assets.length(); i++) {
+                JSONObject asset = assets.optJSONObject(i);
+                if (asset == null) continue;
+                String name = asset.optString("name", "");
+                if (name.toLowerCase(java.util.Locale.US).endsWith(".apk")) {
+                    apkUrl = asset.optString("browser_download_url", "").trim();
+                    break;
+                }
+            }
+        }
+        if (apkUrl.isEmpty()) return null;
+
+        ManifestBundle bundle = new ManifestBundle();
+        ApkUpdateInfo info = new ApkUpdateInfo();
+        info.version = tag.replaceFirst("^[vV]", "");
+        info.versionCode = 0;
+        info.mandatory = true;
+        info.downloadUrl = apkUrl;
+        String body = rel.optString("body", "").trim();
+        if (!body.isEmpty()) {
+            for (String line : body.split("\\r?\\n")) {
+                String clean = line.trim().replaceFirst("^[-*•]+\\s*", "");
+                if (!clean.isEmpty()) info.changelog.add(clean);
+            }
+        }
+        bundle.apk = info;
+        return bundle;
+    }
+
+    private static JSONObject fetchJson(String urlStr) {
+        String current = urlStr;
+        for (int redirect = 0; redirect <= 5; redirect++) {
+            HttpURLConnection conn = null;
+            try {
+                URL url = new URL(current);
+                conn = (HttpURLConnection) url.openConnection();
+                conn.setInstanceFollowRedirects(false);
+                conn.setUseCaches(false);
+                conn.setConnectTimeout(8000);
+                conn.setReadTimeout(10000);
+                conn.setRequestProperty("User-Agent", "SearchRoleplayMobile/1.0");
+                conn.setRequestProperty("Cache-Control", "no-cache, no-store");
+                conn.setRequestProperty("Pragma", "no-cache");
+                int code = conn.getResponseCode();
+                if (code == 301 || code == 302 || code == 303 || code == 307 || code == 308) {
+                    String loc = conn.getHeaderField("Location");
+                    if (loc == null || loc.isEmpty()) return null;
+                    current = new URL(url, loc).toString();
+                    continue;
+                }
+                if (code != 200) return null;
+
+                StringBuilder sb = new StringBuilder();
+                try (BufferedReader br = new BufferedReader(
+                        new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
+                    String ln;
+                    while ((ln = br.readLine()) != null) sb.append(ln);
+                }
+                return new JSONObject(sb.toString());
+            } catch (Exception ignored) {
+                return null;
+            } finally {
+                if (conn != null) conn.disconnect();
+            }
+        }
+        return null;
     }
 
     private static ManifestBundle parseMobileManifest(JSONObject root) {

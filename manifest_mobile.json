@@ -1,17 +1,15 @@
 {
   "schema_version": 1,
   "apk": {
-    "version": "1.0.4",
-    "version_code": 104,
+    "version": "1.0.5",
+    "version_code": 105,
     "mandatory": true,
     "download_url": "https://github.com/Reyhanzz/search-roleplay-mobile/releases/latest/download/SearchRoleplayMobile.apk",
     "sha256": "",
     "changelog": [
-      "Fixed in-game SIGSEGV crash in VoiceButton::draw (0x8CF42) and PlayerTags/Voice UI when samp texture icons are missing, with clean TALK button fallback",
-      "Fixed dangling pointer and out-of-bounds size lookup in MaterialTextGenerator",
-      "Fixed SA-MP 0.3.DL HTTP User-Agent (SAMP/0.3) so open.mp servers allow custom model downloads instead of 401",
-      "Fixed all 5 SA-MP 0.3.DL RPC bitstreams (SetPlayerSkin, WorldPlayerAdd, SetSpawnInfo, RequestClass, ShowActor)",
-      "Fixed GLES/PowerVR black custom textures (clamped mipmap filter modes) and RwTexDictionaryForAllTextures dlsym symbol"
+      "Fixed in-game SIGSEGV crash in TextureDatabaseRuntime::GetEntry (libGTASA.so + 0x1E900A) caused by NULL texture DB entries in registered[]",
+      "Hooked TextureDatabaseRuntime::Register/Unregister/GetEntry, RwTextureDestroy, and RwFrameAddChild on both ARM32 and ARM64 + fixed CUtil::LoadTextureFromDB unregister leak",
+      "Fixed APK auto-updater: redirect + cache-busted manifest fetch, GitHub Releases API fallback, update popup dialog with browser fallback, internal cache APK storage for Android 12 Go FileProvider, and Android 8+ Install Unknown Apps permission flow"
     ]
   },
   "remote_config": {
