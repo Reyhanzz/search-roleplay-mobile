@@ -1,15 +1,14 @@
 {
   "schema_version": 1,
   "apk": {
-    "version": "1.0.13",
-    "version_code": 113,
+    "version": "1.0.14",
+    "version_code": 114,
     "mandatory": true,
     "download_url": "https://github.com/Reyhanzz/search-roleplay-mobile/releases/latest/download/SearchRoleplayMobile.apk",
     "sha256": "",
     "changelog": [
-      "Fixed severe late map rendering and LOD pop-in: properly raised CStreaming::ms_memoryAvailable (128 MB ARM32 / 384 MB ARM64) before Init2 and excluded permanently resident 0.3.DL custom models from starving CStreaming::ms_memoryUsed",
-      "Fixed TextureDatabaseRuntime::UpdateStreaming being called with flush=true every frame (was purging 45 MB of streamed textures every frame) and removed unconditional per-100ms building eviction",
-      "Improved streaming throughput (dual-channel pump, on-foot IPL/collision preload, off-screen-first eviction), eliminated CEntity::Render matrix allocation thrash, and removed synchronous SetMaterial log flush stalls"
+      "Fixed SIGSEGV double-free in CPedModelInfo::DeleteRwObject -> CColModel::~CColModel on server disconnect/restart (custom 0.3.DL skins now keep m_pHitColModel=nullptr so SetClump creates a dedicated hit-col instead of sharing basePed->m_pHitColModel)",
+      "Cleared both bDoWeOwnTheColModel (bit 5) and bOwnsCollisionModel (bit 11) on borrowed collision models, prevented recycling still-referenced custom slots during Reset(), and removed noisy MaterialTextGenerator::Generate1..8 synchronous FLog spam"
     ]
   },
   "remote_config": {

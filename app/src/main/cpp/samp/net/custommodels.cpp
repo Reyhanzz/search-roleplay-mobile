@@ -1401,13 +1401,16 @@ bool LoadCustomModelIntoEngine(CustomModelEntry& entry)
 
         if (pedMi->m_pRwObject)
         {
+            pedMi->m_nFlags &= static_cast<uint16_t>(~((1u << 5) | (1u << 11)));
             pedMi->DeleteRwObject();
         }
 
         CPedModelInfo* basePed = baseMi->AsPedModelInfoPtr();
         pedMi->m_nTxdIndex         = (basePed->m_nTxdIndex >= 0) ? basePed->m_nTxdIndex : 0;
         pedMi->m_nAlpha            = 255;
-        pedMi->m_nFlags            = basePed->m_nFlags & static_cast<uint16_t>(~(1u << 5));
+        // Clear both bDoWeOwnTheColModel (bit 5) and bOwnsCollisionModel (bit 11):
+        // CClumpModelInfo::DeleteRwObject checks bit 11 before freeing borrowed m_pColModel.
+        pedMi->m_nFlags            = basePed->m_nFlags & static_cast<uint16_t>(~((1u << 5) | (1u << 11)));
         pedMi->m_pColModel         = basePed->m_pColModel;
         pedMi->m_fDrawDistance     = (basePed->m_fDrawDistance > 1.0f) ? basePed->m_fDrawDistance : 300.0f;
         pedMi->m_dwAnimFileIndex   = basePed->m_dwAnimFileIndex;
@@ -1416,7 +1419,9 @@ bool LoadCustomModelIntoEngine(CustomModelEntry& entry)
         pedMi->m_nStatType         = basePed->m_nStatType;
         pedMi->m_nCarsCanDriveMask = basePed->m_nCarsCanDriveMask;
         pedMi->m_nPedFlags         = basePed->m_nPedFlags;
-        pedMi->m_pHitColModel      = basePed->m_pHitColModel;
+        // MUST be nullptr: CPedModelInfo::SetClump allocates a dedicated hit-col model when null,
+        // whereas copying basePed->m_pHitColModel causes a double-free SIGSEGV in CPedModelInfo::DeleteRwObject!
+        pedMi->m_pHitColModel      = nullptr;
         pedMi->m_nRadio1           = basePed->m_nRadio1;
         pedMi->m_nRadio2           = basePed->m_nRadio2;
         pedMi->m_nRace             = basePed->m_nRace;
@@ -1472,7 +1477,7 @@ bool LoadCustomModelIntoEngine(CustomModelEntry& entry)
 
         objMi->m_nTxdIndex     = (baseMi && baseMi->m_nTxdIndex >= 0) ? baseMi->m_nTxdIndex : 0;
         objMi->m_nAlpha        = 255;
-        objMi->m_nFlags        = baseMi ? (baseMi->m_nFlags & static_cast<uint16_t>(~(1u << 5))) : 0;
+        objMi->m_nFlags        = baseMi ? (baseMi->m_nFlags & static_cast<uint16_t>(~((1u << 5) | (1u << 11)))) : 0;
         objMi->m_pColModel     = nullptr; // Let embedded DFF COL populate if present
         objMi->m_fDrawDistance = (baseMi && baseMi->m_fDrawDistance > 10.0f) ? baseMi->m_fDrawDistance : 300.0f;
 
@@ -1543,7 +1548,7 @@ bool LoadCustomModelIntoEngine(CustomModelEntry& entry)
         if (colSrc && colSrc->m_pColModel)
         {
             mi->m_pColModel = colSrc->m_pColModel;
-            mi->bDoWeOwnTheColModel = 0;
+            mi->m_nFlags &= static_cast<uint16_t>(~((1u << 5) | (1u << 11)));
         }
     }
 
@@ -1892,11 +1897,15 @@ void CCustomModels::Reset()
             CBaseModelInfo* mi = CModelInfo::GetModelInfo(entry.internalSlot);
             if (mi && mi->m_nRefCount == 0 && mi->m_pRwObject)
             {
+                if (entry.type == MODEL_TYPE_CHAR)
+                {
+                    mi->m_nFlags &= static_cast<uint16_t>(~((1u << 5) | (1u << 11)));
+                }
                 mi->DeleteRwObject();
                 CStreamingInfo& info = CStreaming::GetInfo(entry.internalSlot);
                 info.m_nLoadState = LOADSTATE_NOT_LOADED;
             }
-            if (mi)
+            if (mi && mi->m_nRefCount == 0 && !mi->m_pRwObject)
             {
                 auto& pool = (entry.type == MODEL_TYPE_CHAR) ? s_reusablePedSlots : s_reusableObjSlots;
                 if (std::find(pool.begin(), pool.end(), entry.internalSlot) == pool.end())
