@@ -225,10 +225,10 @@ void EnsureDirectoryTree(const std::string& dirPath)
         cur.push_back(c);
         if (c == '/' && cur.size() > 1)
         {
-            mkdir(cur.c_str(), 0755);
+            mkdir(cur.c_str(), 0775);
         }
     }
-    mkdir(cur.c_str(), 0755);
+    mkdir(cur.c_str(), 0775);
 }
 
 std::string BuildCachePath(uint8_t fileType, uint32_t crc)
@@ -292,6 +292,7 @@ bool WriteFileAtomic(const std::string& path, const uint8_t* data, size_t len)
         remove(tmpPath.c_str());
         return false;
     }
+    chmod(path.c_str(), 0664);
     return true;
 }
 
@@ -1439,7 +1440,20 @@ bool LoadCustomModelIntoEngine(CustomModelEntry& entry)
         const int32 animFileIdx = pedMi->GetAnimFileIndex();
         if (animFileIdx != -1)
         {
-            CStreaming::RequestModel(IFPToModelId(animFileIdx), STREAMING_KEEP_IN_MEMORY);
+            const int32 ifpModelId = IFPToModelId(animFileIdx);
+            if (!CStreaming::GetInfo(ifpModelId).IsLoaded())
+            {
+                CStreaming::RequestModel(ifpModelId, STREAMING_KEEP_IN_MEMORY | STREAMING_PRIORITY_REQUEST);
+                CStreaming::LoadAllRequestedModels(true);
+            }
+            // If the IFP is still unavailable (e.g. missing from IMG), fall back to default ped anims
+            // so CStreaming::ConvertBufferToObject does not reject the custom skin.
+            if (!CStreaming::GetInfo(ifpModelId).IsLoaded())
+            {
+                FLog("0.3.DL: anim IFP %d unavailable for serverId=%d (base=%d), using default ped anims",
+                     animFileIdx, entry.newId, entry.baseId);
+                pedMi->m_dwAnimFileIndex = -1;
+            }
         }
 
         mi = pedMi;
@@ -1879,8 +1893,12 @@ void CCustomModels::Init(const char* szHostOrIp, int iPort)
     if (!baseStorage.empty() && baseStorage.back() != '/')
         baseStorage.push_back('/');
 
-    s_cacheDir = baseStorage + "SAMP/cache/" + SanitizeHostDir(szHostOrIp, iPort);
+    std::string cacheParent = baseStorage + "SAMP/cache";
+    s_cacheDir = cacheParent + "/" + SanitizeHostDir(szHostOrIp, iPort);
     EnsureDirectoryTree(s_cacheDir);
+    // Ensure ext_data_rw group write bit (Android umask 0022 strips g+w from mkdir) so PC/MTP/ADB can access cache
+    chmod(cacheParent.c_str(), 0775);
+    chmod(s_cacheDir.c_str(), 0775);
     s_initialized = true;
 
     FLog("0.3.DL: CustomModels initialized (cache=%s)", s_cacheDir.c_str());

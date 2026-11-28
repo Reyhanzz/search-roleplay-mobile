@@ -1,14 +1,14 @@
 {
   "schema_version": 1,
   "apk": {
-    "version": "1.0.14",
-    "version_code": 114,
+    "version": "1.0.15",
+    "version_code": 115,
     "mandatory": true,
     "download_url": "https://github.com/Reyhanzz/search-roleplay-mobile/releases/latest/download/SearchRoleplayMobile.apk",
     "sha256": "",
     "changelog": [
-      "Fixed SIGSEGV double-free in CPedModelInfo::DeleteRwObject -> CColModel::~CColModel on server disconnect/restart (custom 0.3.DL skins now keep m_pHitColModel=nullptr so SetClump creates a dedicated hit-col instead of sharing basePed->m_pHitColModel)",
-      "Cleared both bDoWeOwnTheColModel (bit 5) and bOwnsCollisionModel (bit 11) on borrowed collision models, prevented recycling still-referenced custom slots during Reset(), and removed noisy MaterialTextGenerator::Generate1..8 synchronous FLog spam"
+      "Fixed 0.3.DL custom skins with non-default IFP animation blocks (e.g. base=274 medic.ifp, 9 skins 21181-21189) failing ConvertBufferToObject: now synchronously preloads the required IFP via priority streaming before loading the DFF, achieving 205/205 custom models loaded",
+      "Set group-writable permissions (0775/0664) on SAMP/cache and server cache directories so files can also be managed cleanly over USB/ADB"
     ]
   },
   "remote_config": {
